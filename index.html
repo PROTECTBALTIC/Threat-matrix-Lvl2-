@@ -24,6 +24,12 @@
 
   #matrixSvg text,
   #matrixSvg tspan{font-family:"Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+
+  .details{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0 0;padding:12px;border:1px solid rgba(0,0,0,.12);border-radius:12px}
+  .details-title{font:700 12px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;letter-spacing:.02em;color:rgba(0,0,0,.6);text-transform:uppercase}
+  .details-name{font:700 16px/1.2 "Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;margin:6px 0 8px}
+  .details-list{font:500 14px/1.35 "Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:rgba(0,0,0,.78);white-space:pre-line}
+
 </style>
 </head>
 <body>
@@ -788,6 +794,20 @@
 </g>
 </g>
 </svg>
+
+<div id="detailsPanel" class="details">
+  <div class="details-col">
+    <div class="details-title">Selected activity</div>
+    <div id="activityName" class="details-name">None</div>
+    <div id="activityDetails" class="details-list"></div>
+  </div>
+  <div class="details-col">
+    <div class="details-title">Selected pressure</div>
+    <div id="pressureName" class="details-name">None</div>
+    <div id="pressureDetails" class="details-list"></div>
+  </div>
+</div>
+
 <div class="toolbar">
 <button id="resetBtn" type="button">Reset</button>
 
@@ -795,11 +815,24 @@
 <div class="status" id="status">Click an activity label to show only its lines.</div>
 </div>
 </div>
-<script>
+<script>/** Normalize labels for strict matching (handles Canalization vs Canalisation) */
+function normalizeLabel(s) {
+  return (s ?? "")
+    .toString()
+    .trim()
+    .replace(/\s+/g, " ")
+    // Treat Canalisation/Canalization as the same label (canonicalize to "Canalization")
+    .replace(/canalisation/gi, "Canalization")
+    .replace(/canalization/gi, "Canalization");
+}
+
+
+
 (() => {
   const svg = document.getElementById('matrixSvg');
   if (!svg) return;
 
+  // --- Activity labels (left) ---
   const activityParts = {
     "Aquaculture": ["Aquaculture"],
     "Agriculture": ["Agriculture"],
@@ -843,6 +876,879 @@
     "Activities & sources outside the Baltic Sea region": ["Activities & sources", "outside the Baltic Sea region"]
   };
 
+  // --- Pressure labels (right) ---
+  // These are the BIG pressure headings on the right side.
+  const pressureParts = {
+    "Physical loss": ["Physical loss"],
+    "Physical disturbance": ["Physical disturbance"],
+    "Changes to hydrological conditions": ["Changes to hydrological conditions"],
+    "Input of sound": ["Input of sound"],
+    "Input of other forms of energy": ["Input of other forms of energy"],
+    "Input of organic matter": ["Input of organic matter"],
+    "Input of hazardous substances": ["Input of hazardous substances"],
+    "Input of litter": ["Input of litter"],
+    "Input of nutrients": ["Input of nutrients"],
+    "Disturbance of species": ["Disturbance of species"],
+    "Extraction or injury to species": ["Extraction or injury to species"],
+    "Input or introduction of biological material": ["Input or introduction of biological material"]
+  };
+
+
+  // --- Level 3 dataset (embedded TSV) ---
+  const TSV_DATA = `PROTECT_act_level2	PROTECT_act_level3	PROTECT_pres_level3	PROTECT_pres_level2
+Abstraction of water	Abstraction of water	Other changes to hydrological conditions	Changes to hydrological conditions
+Abstraction of water	Abstraction of water	Oxygen changes	Changes to hydrological conditions
+Abstraction of water	Abstraction of water	Salinity changes	Changes to hydrological conditions
+Activities and sources outside the Baltic Sea region	Activities and sources outside the Baltic Sea region	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Activities and sources outside the Baltic Sea region	Activities and sources outside the Baltic Sea region	Air pollution of hazardous substances	Input of hazardous substances
+Activities and sources outside the Baltic Sea region	Activities and sources outside the Baltic Sea region	Input or spread of non-indigenous species	Input or introduction of biological material
+Agriculture	(Industrial) animal farming	Other changes to hydrological conditions	Changes to hydrological conditions
+Agriculture	(Industrial) animal farming	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Agriculture	Crop farming for animal feed	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Agriculture	Crop farming for human food	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Agriculture	Crop farming for animal feed	Other changes to hydrological conditions	Changes to hydrological conditions
+Agriculture	Crop farming for animal feed	Coastal and river input of hazardous substances	Input of hazardous substances
+Agriculture	Crop farming for human food	Coastal and river input of hazardous substances	Input of hazardous substances
+Agriculture	(Industrial) animal farming	Coastal and river input of hazardous substances	Input of hazardous substances
+Agriculture	(Industrial) animal farming	Change of habitat location, size and/or quality	Disturbance of species
+Agriculture	Crop farming for animal feed	Change of habitat location, size and/or quality	Disturbance of species
+Agriculture	Crop farming for human food	Change of habitat location, size and/or quality	Disturbance of species
+Agriculture	(Industrial) animal farming	Input of organic matter	Input of organic matter
+Agriculture	(Industrial) animal farming	Input of microbial pathogens	Input or introduction of biological material
+Agriculture	Crop farming for human food	Other changes to hydrological conditions	Changes to hydrological conditions
+Agriculture	(Industrial) animal farming	Input of climate change gases	Input of hazardous substances
+Agriculture	Crop farming for animal feed	Input of climate change gases	Input of hazardous substances
+Agriculture	Crop farming for human food	Input of climate change gases	Input of hazardous substances
+Agriculture	Crop farming for animal feed	Input of organic matter	Input of organic matter
+Agriculture	Crop farming for human food	Input of organic matter	Input of organic matter
+Aquaculture	Finfish mariculture (Aquaculture)	Continuous underwater noise	Input of sound
+Aquaculture	Shellfish mariculture	Continuous underwater noise	Input of sound
+Aquaculture	Finfish mariculture (Aquaculture)	Input of climate change gases	Input of hazardous substances
+Aquaculture	Shellfish mariculture	Input of climate change gases	Input of hazardous substances
+Aquaculture	Aquaculture - fresh water	Input of climate change gases	Input of hazardous substances
+Aquaculture	Finfish mariculture (Aquaculture)	Siltation	Physical disturbance
+Aquaculture	Shellfish mariculture	Siltation	Physical disturbance
+Aquaculture	Abandonment of aquaculture	Beach litter	Input of litter
+Aquaculture	Finfish mariculture (Aquaculture)	Other disturbance to species	Disturbance of species
+Aquaculture	Finfish mariculture (Aquaculture)	Sealing	Physical loss
+Aquaculture	Algae cultivation	Coastal and marine point source input of nutrients	Input of nutrients
+Aquaculture	Shellfish mariculture	Sealing	Physical loss
+Aquaculture	Aquaculture - fresh water	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Aquaculture	Finfish mariculture (Aquaculture)	Coastal and marine point source input of nutrients	Input of nutrients
+Aquaculture	Shellfish mariculture	Coastal and marine point source input of nutrients	Input of nutrients
+Aquaculture	Shellfish mariculture	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Aquaculture	Shellfish mariculture	Input or spread of non-indigenous species	Input or introduction of biological material
+Aquaculture	Finfish mariculture (Aquaculture)	Input or spread of non-indigenous species	Input or introduction of biological material
+Aquaculture	Finfish mariculture (Aquaculture)	Hazardous substances input at sea	Input of hazardous substances
+Aquaculture	Shellfish mariculture	Hazardous substances input at sea	Input of hazardous substances
+Aquaculture	Finfish mariculture (Aquaculture)	Input of microbial pathogens	Input or introduction of biological material
+Aquaculture	Finfish mariculture (Aquaculture)	Input of organic matter	Input of organic matter
+Aquaculture	Shellfish mariculture	Input of organic matter	Input of organic matter
+Aquaculture	Shellfish mariculture	Input of microbial pathogens	Input or introduction of biological material
+Aquaculture	Finfish mariculture	Input of light	Input of other forms of energy
+Aquaculture	Shellfish mariculture	Input of light	Input of other forms of energy
+Aquaculture	Algae cultivation	Input of light	Input of other forms of energy
+Aquaculture	Shellfish mariculture	Input of genetically modified species and translocation of indigenous species	Input or introduction of biological material
+Aquaculture	Finfish mariculture (Aquaculture)	Input of genetically modified species and translocation of indigenous species	Input or introduction of biological material
+Aquaculture	Algae cultivation	Input of genetically modified species and translocation of indigenous species	Input or introduction of biological material
+Aquaculture	Aquaculture - fresh water	Input of organic matter	Input of organic matter
+Aquaculture	Algae cultivation	Input of organic matter	Input of organic matter
+Aquaculture	Finfish mariculture (Aquaculture)	Other changes to hydrological conditions	Changes to hydrological conditions
+Aquaculture	Shellfish mariculture	Other changes to hydrological conditions	Changes to hydrological conditions
+Aquaculture	Shellfish mariculture	Other disturbance to species	Disturbance of species
+Aquaculture	Algae cultivation	Other disturbance to species	Disturbance of species
+Aquaculture	Abandonment of aquaculture	Other disturbance to species	Disturbance of species
+Aquaculture	Aquaculture - fresh water	Other disturbance to species	Disturbance of species
+Aquaculture	Abandonment of aquaculture	Other forms of litter	Input of litter
+Aquaculture	Finfish mariculture (Aquaculture)	Oxygen changes	Changes to hydrological conditions
+Aquaculture	Shellfish mariculture	Oxygen changes	Changes to hydrological conditions
+Aquaculture	Aquaculture - fresh water	Coastal and river input of hazardous substances	Input of hazardous substances
+Aquaculture	Shellfish mariculture	Other forms of litter	Input of litter
+Aquaculture	Algae cultivation	Sealing	Physical loss
+Aquaculture	Algae cultivation	Siltation	Physical disturbance
+Waste treatment and disposal	Industrial waste water treatment	Siltation	Physical disturbance
+Forestry	Forestry	Change of habitat location, size and/or quality	Disturbance of species
+Forestry	Forestry	Coastal and river input of hazardous substances	Input of hazardous substances
+Forestry	Forestry	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Forestry	Forestry	Input of climate change gases	Input of hazardous substances
+Forestry	Forestry	Input of organic matter	Input of organic matter
+Renewable energy generation	Decommission of wind turbines	Input of climate change gases	Input of hazardous substances
+Renewable energy generation	Decommission of wind turbines	Impulsive noise	Input of sound
+Renewable energy generation	Decommission of wind turbines	Other disturbance to species	Disturbance of species
+Renewable energy generation	Decommission of wind turbines	Other changes to hydrological conditions	Changes to hydrological conditions
+Renewable energy generation	Decommission of wind turbines	Sealing	Physical loss
+Renewable energy generation	Decommission of wind turbines	Smothering	Physical disturbance
+Renewable energy generation	Operational windfarms	Input of electromagnetic and seismic waves	Input of other forms of energy
+Renewable energy generation	Other renewable energy production (pumped-storage hydroelectricity)	Input of climate change gases	Input of hazardous substances
+Renewable energy generation	Wave energy production	Impulsive noise	Input of sound
+Renewable energy generation	Wave energy production	Continuous underwater noise	Input of sound
+Renewable energy generation	Wave energy production	Input of electromagnetic and seismic waves	Input of other forms of energy
+Renewable energy generation	Wave energy production	Hazardous substances input at sea	Input of hazardous substances
+Renewable energy generation	Wave energy production	Other disturbance to species	Disturbance of species
+Renewable energy generation	Wave energy production	Input or spread of non-indigenous species	Input or introduction of biological material
+Renewable energy generation	Wave energy production	Sealing	Physical loss
+Renewable energy generation	Wave energy production	Other changes to hydrological conditions	Changes to hydrological conditions
+Renewable energy generation	Wave energy production	Siltation	Physical disturbance
+Renewable energy generation	Wave energy production	Oxygen changes	Changes to hydrological conditions
+Renewable energy generation	Wind energy production: operational wind farms	Input of climate change gases	Input of hazardous substances
+Renewable energy generation	Wind energy production: operational wind farms	Continuous underwater noise	Input of sound
+Renewable energy generation	Wind energy production: operational wind farms	Other disturbance to species	Disturbance of species
+Renewable energy generation	Wind energy production: operational wind farms	Non-intentional extraction or injury to species (including bycatch)	Disturbance of species
+Renewable energy generation	Wind energy production: operational wind farms	Input of light	Input of other forms of energy
+Renewable energy generation	Wind energy production: operational wind farms	Input or spread of non-indigenous species	Input or introduction of biological material
+Renewable energy generation	Wind energy production: operational wind farms	Sealing	Physical loss
+Renewable energy generation	Wind energy production: operational wind farms	Other changes to hydrological conditions	Changes to hydrological conditions
+Renewable energy generation	Wind energy production: operational wind farms	Siltation	Physical disturbance
+Renewable energy generation	Wind energy production: wind farms under construction	Input of climate change gases	Input of hazardous substances
+Renewable energy generation	Wind energy production: wind farms under construction	Impulsive noise	Input of sound
+Renewable energy generation	Wind energy production: wind farms under construction	Hazardous substances input at sea	Input of hazardous substances
+Renewable energy generation	Wind energy production: wind farms under construction	Input of light	Input of other forms of energy
+Renewable energy generation	Wind energy production: wind farms under construction	Other disturbance to species	Disturbance of species
+Renewable energy generation	Wind energy production: wind farms under construction	Other changes to hydrological conditions	Changes to hydrological conditions
+Renewable energy generation	Wind energy production: wind farms under construction	Sealing	Physical loss
+Renewable energy generation	Wind energy production: wind farms under construction	Smothering	Physical disturbance
+Non-renewable energy generation	Fossil fuel energy production	Change in water temperature	Input of other forms of energy
+Non-renewable energy generation	Fossil fuel energy production	Coastal and river input of hazardous substances	Input of hazardous substances
+Non-renewable energy generation	Fossil fuel energy production	Air pollution of hazardous substances	Input of hazardous substances
+Non-renewable energy generation	Fossil fuel energy production	Input of climate change gases	Input of hazardous substances
+Non-renewable energy generation	Fossil fuel energy production	Other changes to hydrological conditions	Changes to hydrological conditions
+Non-renewable energy generation	Fossil fuel energy production	Salinity changes	Changes to hydrological conditions
+Non-renewable energy generation	Fossil fuel energy production	Siltation	Physical disturbance
+Non-renewable energy generation	Fossil fuel energy production	Oxygen changes	Changes to hydrological conditions
+Non-renewable energy generation	Fossil fuel energy production	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Non-renewable energy generation	Nuclear energy production	Change in water temperature	Input of other forms of energy
+Non-renewable energy generation	Nuclear energy production	Coastal and river input of hazardous substances	Input of hazardous substances
+Non-renewable energy generation	Nuclear energy production	Air pollution of hazardous substances	Input of hazardous substances
+Non-renewable energy generation	Nuclear energy production	Input of climate change gases	Input of hazardous substances
+Non-renewable energy generation	Nuclear energy production	Other changes to hydrological conditions	Changes to hydrological conditions
+Non-renewable energy generation	Nuclear energy production	Siltation	Physical disturbance
+Non-renewable energy generation	Nuclear energy production	Salinity changes	Changes to hydrological conditions
+Non-renewable energy generation	Nuclear energy production	Oxygen changes	Changes to hydrological conditions
+Non-renewable energy generation	Nuclear energy production	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Transmission of electricity and communications	Cables	Change in water temperature	Input of other forms of energy
+Transmission of electricity and communications	Cables	Hazardous substances input at sea	Input of hazardous substances
+Transmission of electricity and communications	Cables	Input of electromagnetic and seismic waves	Input of other forms of energy
+Transmission of electricity and communications	Cables	Continuous underwater noise	Input of sound
+Transmission of electricity and communications	Cables	Input of climate change gases	Input of hazardous substances
+Transmission of electricity and communications	Cables	Sealing	Physical loss
+Transmission of electricity and communications	Cables	Abrasion	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Benthic seining	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Benthic seining	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Benthic seining	Abrasion	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Benthic seining	Other disturbance to species	Disturbance of species
+Fish and shellfish harvesting (professional, recreational)	Benthic seining	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Benthic seining	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Benthic seining	Other forms of litter	Input of litter
+Fish and shellfish harvesting (professional, recreational)	Benthic seining	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Oxygen changes	Changes to hydrological conditions
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Abrasion	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Siltation	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Hazardous substances input at sea	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Input of light	Input of other forms of energy
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Extraction	Physical loss
+Fish and shellfish harvesting (professional, recreational)	Benthic trawling	Other forms of litter	Input of litter
+Fish and shellfish harvesting (professional, recreational)	Demersal long lining	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Demersal long lining	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Demersal long lining	Abrasion	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Demersal long lining	Other disturbance to species	Disturbance of species
+Fish and shellfish harvesting (professional, recreational)	Demersal long lining	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Demersal long lining	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Demersal long lining	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Demersal long lining	Other forms of litter	Input of litter
+Fish and shellfish harvesting (professional, recreational)	Fishery with coastal stationary gear	Abrasion	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Fishery with coastal stationary gear	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Fishery with coastal stationary gear	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Fishery with coastal stationary gear	Other disturbance to species	Disturbance of species
+Fish and shellfish harvesting (professional, recreational)	Fishery with coastal stationary gear	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Fishery with coastal stationary gear	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Fishery with coastal stationary gear	Other forms of litter	Input of litter
+Fish and shellfish harvesting (professional, recreational)	Leisure fishing	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Leisure fishing	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Leisure fishing	Other disturbance to species	Disturbance of species
+Fish and shellfish harvesting (professional, recreational)	Leisure fishing	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Leisure fishing	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Leisure fishing	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Leisure fishing	Other forms of litter	Input of litter
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Oxygen changes	Changes to hydrological conditions
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Abrasion	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Siltation	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Hazardous substances input at sea	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Input of light	Input of other forms of energy
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Extraction	Physical loss
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Other forms of litter	Input of litter
+Fish and shellfish harvesting (professional, recreational)	Mussels and scallop dredging	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Netting	Abrasion	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Netting	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Netting	Other disturbance to species	Disturbance of species
+Fish and shellfish harvesting (professional, recreational)	Netting	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Netting	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Netting	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Netting	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Netting	Other forms of litter	Input of litter
+Fish and shellfish harvesting (professional, recreational)	Pelagic long lining	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Pelagic long lining	Other disturbance to species	Disturbance of species
+Fish and shellfish harvesting (professional, recreational)	Pelagic long lining	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Pelagic long lining	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Pelagic long lining	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Pelagic long lining	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Pelagic long lining	Other forms of litter	Input of litter
+Fish and shellfish harvesting (professional, recreational)	Pelagic seining	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Pelagic seining	Other disturbance to species	Disturbance of species
+Fish and shellfish harvesting (professional, recreational)	Pelagic seining	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Pelagic seining	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Pelagic seining	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Pelagic seining	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Pelagic seining	Other forms of litter	Input of litter
+Fish and shellfish harvesting (professional, recreational)	Pelagic trawling	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Pelagic trawling	Abrasion	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Pelagic trawling	Hazardous substances input at sea	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Pelagic trawling	Other disturbance to species	Disturbance of species
+Fish and shellfish harvesting (professional, recreational)	Pelagic trawling	Input of light	Input of other forms of energy
+Fish and shellfish harvesting (professional, recreational)	Pelagic trawling	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Pelagic trawling	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Pelagic trawling	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Pelagic trawling	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Pelagic trawling	Other forms of litter	Input of litter
+Fish and shellfish harvesting (professional, recreational)	Potting/ creeling	Continuous underwater noise	Input of sound
+Fish and shellfish harvesting (professional, recreational)	Potting/ creeling	Abrasion	Physical disturbance
+Fish and shellfish harvesting (professional, recreational)	Potting/ creeling	Other disturbance to species	Disturbance of species
+Fish and shellfish harvesting (professional, recreational)	Potting/ creeling	Input of climate change gases	Input of hazardous substances
+Fish and shellfish harvesting (professional, recreational)	Potting/ creeling	Input of organic matter	Input of organic matter
+Fish and shellfish harvesting (professional, recreational)	Potting/ creeling	Intentional extraction or injury to species	Extraction or injury to species
+Fish and shellfish harvesting (professional, recreational)	Potting/ creeling	Other forms of litter	Input of litter
+Fish and shellfish processing	Fish and shellfish processing	Other disturbance to species	Disturbance of species
+Fish and shellfish processing	Fish and shellfish processing	Input of organic matter	Input of organic matter
+Fish and shellfish processing	Fish and shellfish processing	Input of climate change gases	Input of hazardous substances
+Management of fish stocks and gaming	Management of fish stocks and gaming	Input of genetically modified species and translocation of indigenous species	Input or introduction of biological material
+Management of fish stocks and gaming	Management of fish stocks and gaming	Intentional extraction or injury to species	Extraction or injury to species
+Management of fish stocks and gaming	Management of fish stocks and gaming	Input of organic matter	Input of organic matter
+Management of fish stocks and gaming	Management of fish stocks and gaming	Input or spread of non-indigenous species	Input or introduction of biological material
+Management of fish stocks and gaming	Management of fish stocks and gaming	Input of climate change gases	Input of hazardous substances
+Management of fish stocks and gaming	Management of fish stocks and gaming	Other disturbance to species	Disturbance of species
+Hunting and collecting for other purposes	Bait collection (digging)	Abrasion	Physical disturbance
+Hunting and collecting for other purposes	Bait collection (digging)	Intentional extraction or injury to species	Extraction or injury to species
+Hunting and collecting for other purposes	Game hunting (Sea birds: eider, long tailed duck, common scoter, velvet scoter)	Impulsive noise	Input of sound
+Hunting and collecting for other purposes	Game hunting (Sea birds: eider, long tailed duck, common scoter, velvet scoter)	Other disturbance to species	Disturbance of species
+Hunting and collecting for other purposes	Game hunting (Sea birds: eider, long tailed duck, common scoter, velvet scoter)	Input of climate change gases	Input of hazardous substances
+Hunting and collecting for other purposes	Game hunting (Sea birds: eider, long tailed duck, common scoter, velvet scoter)	Intentional extraction or injury to species	Extraction or injury to species
+Hunting and collecting for other purposes	Predator control	Impulsive noise	Input of sound
+Hunting and collecting for other purposes	Predator control	Other disturbance to species	Disturbance of species
+Hunting and collecting for other purposes	Predator control	Input of climate change gases	Input of hazardous substances
+Hunting and collecting for other purposes	Predator control	Intentional extraction or injury to species	Extraction or injury to species
+Marine plant harvesting	Hand collecting (seaweed, macrophytes)	Abrasion	Physical disturbance
+Marine plant harvesting	Hand collecting (seaweed, macrophytes)	Input of genetically modified species and translocation of indigenous species	Input or introduction of biological material
+Marine plant harvesting	Hand collecting (seaweed, macrophytes)	Intentional extraction or injury to species	Extraction or injury to species
+Marine plant harvesting	Machine collection (fucoids, kelp)	Abrasion	Physical disturbance
+Marine plant harvesting	Machine collection (fucoids, kelp)	Continuous underwater noise	Input of sound
+Marine plant harvesting	Machine collection (fucoids, kelp)	Extraction	Physical loss
+Marine plant harvesting	Machine collection (fucoids, kelp)	Intentional extraction or injury to species	Extraction or injury to species
+Marine plant harvesting	Machine collection (fucoids, kelp)	Other changes to hydrological conditions	Changes to hydrological conditions
+Marine plant harvesting	Maerl and Furcellaria harvesting	Continuous underwater noise	Input of sound
+Marine plant harvesting	Maerl and Furcellaria harvesting	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Marine plant harvesting	Maerl and Furcellaria harvesting	Abrasion	Physical disturbance
+Marine plant harvesting	Maerl and Furcellaria harvesting	Extraction	Physical loss
+Marine plant harvesting	Maerl and Furcellaria harvesting	Other changes to hydrological conditions	Changes to hydrological conditions
+Marine plant harvesting	Maerl and Furcellaria harvesting	Intentional extraction or injury to species	Extraction or injury to species
+Marine plant harvesting	Reed harvesting	Extraction	Physical loss
+Marine plant harvesting	Reed harvesting	Intentional extraction or injury to species	Extraction or injury to species
+Marine plant harvesting	Reed harvesting	Hazardous substances input at sea	Input of hazardous substances
+Marine plant harvesting	Reed harvesting	Input of organic matter	Input of organic matter
+Marine plant harvesting	Reed harvesting	Other changes to hydrological conditions	Changes to hydrological conditions
+Marine plant harvesting	Reed harvesting	Coastal and marine point source input of nutrients	Input of nutrients
+Marine plant harvesting	Reed harvesting	Smothering	Physical disturbance
+Extraction of minerals	Extraction of metal ores	Abrasion	Physical disturbance
+Extraction of minerals	Extraction of metal ores	Continuous underwater noise	Input of sound
+Extraction of minerals	Extraction of metal ores	Impulsive noise	Input of sound
+Extraction of minerals	Extraction of metal ores	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Extraction of minerals	Extraction of metal ores	Other disturbance to species	Disturbance of species
+Extraction of minerals	Extraction of metal ores	Hazardous substances input at sea	Input of hazardous substances
+Extraction of minerals	Extraction of metal ores	Extraction	Physical loss
+Extraction of minerals	Extraction of metal ores	Input of climate change gases	Input of hazardous substances
+Extraction of minerals	Extraction of metal ores	Input of electromagnetic and seismic waves	Input of other forms of energy
+Extraction of minerals	Extraction of metal ores	Input of organic matter	Input of organic matter
+Extraction of minerals	Extraction of metal ores	Other changes to hydrological conditions	Changes to hydrological conditions
+Extraction of minerals	Extraction of metal ores	Oxygen changes	Changes to hydrological conditions
+Extraction of minerals	Extraction of metal ores	Salinity changes	Changes to hydrological conditions
+Extraction of minerals	Extraction of sand and gravel	Impulsive noise	Input of sound
+Extraction of minerals	Extraction of sand and gravel	Smothering	Physical disturbance
+Extraction of minerals	Extraction of sand and gravel	Continuous underwater noise	Input of sound
+Extraction of minerals	Extraction of sand and gravel	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Extraction of minerals	Extraction of sand and gravel	Hazardous substances input at sea	Input of hazardous substances
+Extraction of minerals	Extraction of sand and gravel	Other disturbance to species	Disturbance of species
+Extraction of minerals	Extraction of sand and gravel	Extraction	Physical loss
+Extraction of minerals	Extraction of sand and gravel	Input of climate change gases	Input of hazardous substances
+Extraction of minerals	Extraction of sand and gravel	Other changes to hydrological conditions	Changes to hydrological conditions
+Extraction of minerals	Extraction of sand and gravel	Input of organic matter	Input of organic matter
+Extraction of minerals	Extraction of sand and gravel	Oxygen changes	Changes to hydrological conditions
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Input of climate change gases	Input of hazardous substances
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Abrasion	Physical disturbance
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Continuous underwater noise	Input of sound
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Non-intentional extraction or injury to species (including bycatch)	Disturbance of species
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Hazardous substances input at sea	Input of hazardous substances
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Impulsive noise	Input of sound
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Sealing	Physical loss
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Input of electromagnetic and seismic waves	Input of other forms of energy
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Input of light	Input of other forms of energy
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Other changes to hydrological conditions	Changes to hydrological conditions
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Input or spread of non-indigenous species	Input or introduction of biological material
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Oxygen changes	Changes to hydrological conditions
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Other forms of litter	Input of litter
+Extraction of oil and gas	Oil and gas industry infrastructure (Oil platforms)	Salinity changes	Changes to hydrological conditions
+Extraction of oil and gas	Pipeline placement and operation (Pipelines)	Input of climate change gases	Input of hazardous substances
+Extraction of oil and gas	Pipeline placement and operation (Pipelines)	Abrasion	Physical disturbance
+Extraction of oil and gas	Pipeline placement and operation (Pipelines)	Continuous underwater noise	Input of sound
+Extraction of oil and gas	Pipeline placement and operation (Pipelines)	Hazardous substances input at sea	Input of hazardous substances
+Extraction of oil and gas	Pipeline placement and operation (Pipelines)	Impulsive noise	Input of sound
+Extraction of oil and gas	Pipeline placement and operation (Pipelines)	Sealing	Physical loss
+Extraction of oil and gas	Pipeline placement and operation (Pipelines)	Input of electromagnetic and seismic waves	Input of other forms of energy
+Extraction of oil and gas	Pipeline placement and operation (Pipelines)	Input or spread of non-indigenous species	Input or introduction of biological material
+Extraction of oil and gas	Pipeline placement and operation (Pipelines)	Other changes to hydrological conditions	Changes to hydrological conditions
+Extraction of oil and gas	Pipeline placement and operation (Pipelines)	Other disturbance to species	Disturbance of species
+Land claim	Permanent land claim (urban, industrial, leisure, agriculture purposes)	Input of climate change gases	Input of hazardous substances
+Land claim	Permanent land claim (urban, industrial, leisure, agriculture purposes)	Continuous underwater noise	Input of sound
+Land claim	Permanent land claim (urban, industrial, leisure, agriculture purposes)	Impulsive noise	Input of sound
+Land claim	Permanent land claim (urban, industrial, leisure, agriculture purposes)	Siltation	Physical disturbance
+Land claim	Permanent land claim (urban, industrial, leisure, agriculture purposes)	Other disturbance to species	Disturbance of species
+Land claim	Permanent land claim (urban, industrial, leisure, agriculture purposes)	Sealing	Physical loss
+Land claim	Permanent land claim (urban, industrial, leisure, agriculture purposes)	Other changes to hydrological conditions	Changes to hydrological conditions
+Restructuring of seabed morphology	Beach replenishment/ nourishment	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Restructuring of seabed morphology	Beach replenishment/ nourishment	Continuous underwater noise	Input of sound
+Restructuring of seabed morphology	Beach replenishment/ nourishment	Hazardous substances input at sea	Input of hazardous substances
+Restructuring of seabed morphology	Beach replenishment/ nourishment	Input of organic matter	Input of organic matter
+Restructuring of seabed morphology	Beach replenishment/ nourishment	Other disturbance to species	Disturbance of species
+Restructuring of seabed morphology	Beach replenishment/ nourishment	Coastal and marine point source input of nutrients	Input of nutrients
+Restructuring of seabed morphology	Beach replenishment/ nourishment	Other changes to hydrological conditions	Changes to hydrological conditions
+Restructuring of seabed morphology	Beach replenishment/ nourishment	Sealing	Physical loss
+Restructuring of seabed morphology	Beach replenishment/ nourishment	Siltation	Physical disturbance
+Restructuring of seabed morphology	Depositing dredged material	Coastal and marine point source input of nutrients	Input of nutrients
+Restructuring of seabed morphology	Depositing dredged material	Hazardous substances input at sea	Input of hazardous substances
+Restructuring of seabed morphology	Depositing dredged material	Input of climate change gases	Input of hazardous substances
+Restructuring of seabed morphology	Depositing dredged material	Other disturbance to species	Disturbance of species
+Restructuring of seabed morphology	Depositing dredged material	Input of organic matter	Input of organic matter
+Restructuring of seabed morphology	Depositing dredged material	Other changes to hydrological conditions	Changes to hydrological conditions
+Restructuring of seabed morphology	Depositing dredged material	Sealing	Physical loss
+Restructuring of seabed morphology	Depositing dredged material	Smothering	Physical disturbance
+Restructuring of seabed morphology	Dredging	Oxygen changes	Changes to hydrological conditions
+Restructuring of seabed morphology	Dredging	Salinity changes	Changes to hydrological conditions
+Restructuring of seabed morphology	Dredging	Coastal and marine point source input of nutrients	Input of nutrients
+Restructuring of seabed morphology	Dredging	Change of habitat location, size and/or quality	Disturbance of species
+Restructuring of seabed morphology	Dredging	Non-intentional extraction or injury to species (including bycatch)	Extraction or injury to species
+Restructuring of seabed morphology	Dredging	Impulsive noise	Input of sound
+Restructuring of seabed morphology	Dredging	Hazardous substances input at sea	Input of hazardous substances
+Restructuring of seabed morphology	Dredging	Continuous underwater noise	Input of sound
+Restructuring of seabed morphology	Dredging	Input of climate change gases	Input of hazardous substances
+Restructuring of seabed morphology	Dredging	Other disturbance to species	Disturbance of species
+Restructuring of seabed morphology	Dredging	Input of organic matter	Input of organic matter
+Restructuring of seabed morphology	Dredging	Other changes to hydrological conditions	Changes to hydrological conditions
+Restructuring of seabed morphology	Dredging	Extraction	Physical loss
+Restructuring of seabed morphology	Dredging	Smothering	Physical disturbance
+Canalisation and other watercourse modifications	Canalisation	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Canalisation and other watercourse modifications	Canalisation	Sealing	Physical loss
+Canalisation and other watercourse modifications	Canalisation	Change of habitat location, size and/or quality	Disturbance of species
+Canalisation and other watercourse modifications	Canalisation	Other changes to hydrological conditions	Changes to hydrological conditions
+Canalisation and other watercourse modifications	Canalisation	Input of climate change gases	Input of hazardous substances
+Canalisation and other watercourse modifications	Canalisation	Other disturbance to species	Disturbance of species
+Canalisation and other watercourse modifications	Coastal dams, weirs	Abrasion	Physical disturbance
+Canalisation and other watercourse modifications	Coastal dams, weirs	Continuous underwater noise	Input of sound
+Canalisation and other watercourse modifications	Coastal dams, weirs	Sealing	Physical loss
+Canalisation and other watercourse modifications	Coastal dams, weirs	Change of habitat location, size and/or quality	Disturbance of species
+Canalisation and other watercourse modifications	Coastal dams, weirs	Input of climate change gases	Input of hazardous substances
+Canalisation and other watercourse modifications	Coastal dams, weirs	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Canalisation and other watercourse modifications	Coastal dams, weirs	Other changes to hydrological conditions	Changes to hydrological conditions
+Canalisation and other watercourse modifications	Coastal dams, weirs	Other disturbance to species	Disturbance of species
+Canalisation and other watercourse modifications	Culverting/trenching	Continuous underwater noise	Input of sound
+Canalisation and other watercourse modifications	Culverting/trenching	Extraction	Physical loss
+Canalisation and other watercourse modifications	Culverting/trenching	Change in water temperature	Input of other forms of energy
+Canalisation and other watercourse modifications	Culverting/trenching	Change of habitat location, size and/or quality	Disturbance of species
+Canalisation and other watercourse modifications	Culverting/trenching	Input of climate change gases	Input of hazardous substances
+Canalisation and other watercourse modifications	Culverting/trenching	Other changes to hydrological conditions	Changes to hydrological conditions
+Canalisation and other watercourse modifications	Culverting/trenching	Salinity changes	Changes to hydrological conditions
+Canalisation and other watercourse modifications	Culverting/trenching	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Canalisation and other watercourse modifications	Culverting/trenching	Other disturbance to species	Disturbance of species
+Canalisation and other watercourse modifications	Large-scale water deviation	Extraction	Physical loss
+Canalisation and other watercourse modifications	Large-scale water deviation	Change of habitat location, size and/or quality	Disturbance of species
+Canalisation and other watercourse modifications	Large-scale water deviation	Input of climate change gases	Input of hazardous substances
+Canalisation and other watercourse modifications	Large-scale water deviation	Other changes to hydrological conditions	Changes to hydrological conditions
+Canalisation and other watercourse modifications	Large-scale water deviation	Other disturbance to species	Disturbance of species
+Coastal defence & flood protection	Breakwaters	Abrasion	Physical disturbance
+Coastal defence & flood protection	Flood protection	Abrasion	Physical disturbance
+Coastal defence & flood protection	Breakwaters	Continuous underwater noise	Input of sound
+Coastal defence & flood protection	Groynes	Abrasion	Physical disturbance
+Coastal defence & flood protection	Flood protection	Continuous underwater noise	Input of sound
+Coastal defence & flood protection	Groynes	Continuous underwater noise	Input of sound
+Coastal defence & flood protection	Sea walls	Continuous underwater noise	Input of sound
+Coastal defence & flood protection	Sea walls	Abrasion	Physical disturbance
+Coastal defence & flood protection	Tidal barrages	Abrasion	Physical disturbance
+Coastal defence & flood protection	Tidal barrages	Other disturbance to species	Disturbance of species
+Coastal defence & flood protection	Breakwaters	Sealing	Physical loss
+Coastal defence & flood protection	Flood protection	Extraction	Physical loss
+Coastal defence & flood protection	Groynes	Sealing	Physical loss
+Coastal defence & flood protection	Sea walls	Sealing	Physical loss
+Coastal defence & flood protection	Tidal barrages	Sealing	Physical loss
+Coastal defence & flood protection	Breakwaters	Other changes to hydrological conditions	Changes to hydrological conditions
+Coastal defence & flood protection	Flood protection	Other changes to hydrological conditions	Changes to hydrological conditions
+Coastal defence & flood protection	Groynes	Other changes to hydrological conditions	Changes to hydrological conditions
+Coastal defence & flood protection	Sea walls	Other changes to hydrological conditions	Changes to hydrological conditions
+Coastal defence & flood protection	Tidal barrages	Other changes to hydrological conditions	Changes to hydrological conditions
+Coastal defence & flood protection	Breakwaters	Other disturbance to species	Disturbance of species
+Coastal defence & flood protection	Flood protection	Other disturbance to species	Disturbance of species
+Coastal defence & flood protection	Groynes	Other disturbance to species	Disturbance of species
+Coastal defence & flood protection	Sea walls	Other disturbance to species	Disturbance of species
+Offshore structures (other than for energy production/extraction)	Artificial reefs and islands	Change of habitat location, size and/or quality	Disturbance of species
+Offshore structures (other than for energy production/extraction)	Artificial reefs and islands	Hazardous substances input at sea	Input of hazardous substances
+Offshore structures (other than for energy production/extraction)	Artificial reefs and islands	Input or spread of non-indigenous species	Input or introduction of biological material
+Offshore structures (other than for energy production/extraction)	Artificial reefs and islands	Sealing	Physical loss
+Offshore structures (other than for energy production/extraction)	Artificial reefs and islands	Siltation	Physical disturbance
+Offshore structures (other than for energy production/extraction)	Artificial reefs and islands	Other changes to hydrological conditions	Changes to hydrological conditions
+Offshore structures (other than for energy production/extraction)	Artificial reefs and islands	Other disturbance to species	Disturbance of species
+Shipping	Mooring, anchoring, beaching, launching	Beach litter	Input of litter
+Shipping	Passage of ships	Input of light	Input of other forms of energy
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Air pollution of hazardous substances	Input of hazardous substances
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Input of climate change gases	Input of hazardous substances
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Input or spread of non-indigenous species	Input or introduction of biological material
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Input of microbial pathogens	Input or introduction of biological material
+Shipping	Mooring, anchoring, beaching, launching	Input or spread of non-indigenous species	Input or introduction of biological material
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Hazardous substances input at sea	Input of hazardous substances
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Beach litter	Input of litter
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Coastal and marine point source input of nutrients	Input of nutrients
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Continuous underwater noise	Input of sound
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Other disturbance to species	Disturbance of species
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Non-intentional extraction or injury to species (including bycatch)	Disturbance of species
+Shipping	Mooring, anchoring, beaching, launching	Other disturbance to species	Disturbance of species
+Shipping	Mooring, anchoring, beaching, launching	Hazardous substances input at sea	Input of hazardous substances
+Shipping	Mooring, anchoring, beaching, launching	Continuous underwater noise	Input of sound
+Shipping	Mooring, anchoring, beaching, launching	Impulsive noise	Input of sound
+Shipping	Mooring, anchoring, beaching, launching	Other changes to hydrological conditions	Changes to hydrological conditions
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Other changes to hydrological conditions	Changes to hydrological conditions
+Shipping	Mooring, anchoring, beaching, launching	Other forms of litter	Input of litter
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Other forms of litter	Input of litter
+Shipping	Mooring, anchoring, beaching, launching	Abrasion	Physical disturbance
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Abrasion	Physical disturbance
+Shipping	Passage of ships/boats (passenger shipping; shipping density)	Siltation	Physical disturbance
+Air	Transport - air	Air pollution of hazardous substances	Input of hazardous substances
+Air	Transport - air	Input of climate change gases	Input of hazardous substances
+Land	Road transport	Air pollution of hazardous substances	Input of hazardous substances
+Land	Rail transport	Air pollution of hazardous substances	Input of hazardous substances
+Land	Road transport	Input of climate change gases	Input of hazardous substances
+Land	Rail transport	Input of climate change gases	Input of hazardous substances
+Transport infrastructure	Fishing harbours	Abrasion	Physical disturbance
+Transport infrastructure	Land transport infrastructure	Coastal and river input of hazardous substances	Input of hazardous substances
+Transport infrastructure	Fishing harbours	Coastal and marine point source input of nutrients	Input of nutrients
+Transport infrastructure	Industrial and ferry ports	Coastal and marine point source input of nutrients	Input of nutrients
+Transport infrastructure	Air transport infrastructure	Coastal and river input of hazardous substances	Input of hazardous substances
+Transport infrastructure	Bridges and causeways	Impulsive noise	Input of sound
+Transport infrastructure	Fishing harbours	Input of light	Input of other forms of energy
+Transport infrastructure	Fishing harbours	Input of organic matter	Input of organic matter
+Transport infrastructure	Industrial and ferry ports	Input of organic matter	Input of organic matter
+Transport infrastructure	Air transport infrastructure	Input of climate change gases	Input of hazardous substances
+Transport infrastructure	Fishing harbours	Input of climate change gases	Input of hazardous substances
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Input of climate change gases	Input of hazardous substances
+Transport infrastructure	Bridges and causeways	Input of climate change gases	Input of hazardous substances
+Transport infrastructure	Tunnels	Input of climate change gases	Input of hazardous substances
+Transport infrastructure	Ship/boat-building facilities	Input of climate change gases	Input of hazardous substances
+Transport infrastructure	Land transport infrastructure	Input of climate change gases	Input of hazardous substances
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Input of microbial pathogens	Input or introduction of biological material
+Transport infrastructure	Tunnels	Other changes to hydrological conditions	Changes to hydrological conditions
+Transport infrastructure	Ship/boat-building facilities	Other changes to hydrological conditions	Changes to hydrological conditions
+Transport infrastructure	Fishing harbours	Other changes to hydrological conditions	Changes to hydrological conditions
+Transport infrastructure	Bridges and causeways	Other changes to hydrological conditions	Changes to hydrological conditions
+Transport infrastructure	Ship/boat-building facilities	Hazardous substances input at sea	Input of hazardous substances
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Hazardous substances input at sea	Input of hazardous substances
+Transport infrastructure	Fishing harbours	Hazardous substances input at sea	Input of hazardous substances
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Continuous underwater noise	Input of sound
+Transport infrastructure	Bridges and causeways	Continuous underwater noise	Input of sound
+Transport infrastructure	Fishing harbours	Continuous underwater noise	Input of sound
+Transport infrastructure	Ship/boat-building facilities	Continuous underwater noise	Input of sound
+Transport infrastructure	Ship/boat-building facilities	Other disturbance to species	Disturbance of species
+Transport infrastructure	Fishing harbours	Input or spread of non-indigenous species	Input or introduction of biological material
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Input or spread of non-indigenous species	Input or introduction of biological material
+Transport infrastructure	Bridges and causeways	Other disturbance to species	Disturbance of species
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Input of light	Input of other forms of energy
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Other disturbance to species	Disturbance of species
+Transport infrastructure	Fishing harbours	Other disturbance to species	Disturbance of species
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Other changes to hydrological conditions	Changes to hydrological conditions
+Transport infrastructure	Fishing harbours	Oxygen changes	Changes to hydrological conditions
+Transport infrastructure	Fishing harbours	Salinity changes	Changes to hydrological conditions
+Transport infrastructure	Industrial and ferry ports	Salinity changes	Changes to hydrological conditions
+Transport infrastructure	Industrial and ferry ports	Oxygen changes	Changes to hydrological conditions
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Extraction	Physical loss
+Transport infrastructure	Tunnels	Extraction	Physical loss
+Transport infrastructure	Ship/boat-building facilities	Sealing	Physical loss
+Transport infrastructure	Fishing harbours	Sealing	Physical loss
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Other forms of litter	Input of litter
+Transport infrastructure	Bridges and causeways	Sealing	Physical loss
+Transport infrastructure	Ship/boat-building facilities	Siltation	Physical disturbance
+Transport infrastructure	Industrial and ferry ports (harbours, bunkering points at sea; oil terminals)	Smothering	Physical disturbance
+Transport infrastructure	Bridges and causeways	Siltation	Physical disturbance
+Urban uses	Urban land use (incl. storm water runoff)	Beach litter	Input of litter (solid waste matter, including micro-size litter)
+Urban uses	Urban land use (incl. storm water runoff)	Coastal and river input of hazardous substances	Input of hazardous substances
+Urban uses	Urban land use (incl. storm water runoff)	Input of climate change gases	Input of hazardous substances
+Urban uses	Urban land use (incl. storm water runoff)	Input of microbial pathogens	Input or introduction of biological material
+Urban uses	Urban land use (incl. storm water runoff)	Input of organic matter	Input of organic matter
+Urban uses	Urban land use	Input of light	Input of other forms of energy
+Urban uses	Urban land use (incl. storm water runoff)	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Urban uses	Urban land use (incl. storm water runoff)	Other forms of litter	Input of litter (solid waste matter, including micro-size litter)
+Urban uses	Urban land use (incl. storm water runoff)	Other disturbance to species	Disturbance of species
+Industrial uses	Heating and cooling systems	Change in water temperature	Input of other forms of energy
+Industrial uses	Oil and gas refineries; Industrial plants	Beach litter	Input of litter (solid waste matter, including micro-size litter)
+Industrial uses	Oil and gas refineries; Industrial plants	Change in water temperature	Input of other forms of energy
+Industrial uses	Heating and cooling systems	Input of climate change gases	Input of hazardous substances
+Industrial uses	Oil and gas refineries; Industrial plants	Input of climate change gases	Input of hazardous substances
+Industrial uses	Oil and gas refineries; Industrial plants	Coastal and river input of hazardous substances	Input of hazardous substances
+Industrial uses	Oil and gas refineries; Industrial plants	Siltation	Physical disturbance
+Industrial uses	Oil and gas refineries; Industrial plants	Input of microbial pathogens	Input or introduction of biological material
+Industrial uses	Oil and gas refineries; Industrial plants	Input of light	Input of other forms of energy
+Industrial uses	Oil and gas refineries; Industrial plants	Other changes to hydrological conditions	Changes to hydrological conditions
+Industrial uses	Oil and gas refineries; Industrial plants	Salinity changes	Changes to hydrological conditions
+Industrial uses	Oil and gas refineries; Industrial plants	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Industrial uses	Oil and gas refineries; Industrial plants	Input of organic matter	Input of organic matter
+Industrial uses	Oil and gas refineries; Industrial plants	Oxygen changes	Changes to hydrological conditions
+Industrial uses	Oil and gas refineries; Industrial plants	Other forms of litter	Input of litter (solid waste matter, including micro-size litter)
+Waste treatment and disposal	Carbon capture and storage (Carbon sequestration)	Abrasion	Physical disturbance
+Waste treatment and disposal	Solid waste disposal (e.g. landfills)	Beach litter	Input of litter
+Waste treatment and disposal	Urban waste water treatment	Coastal and river input of hazardous substances	Input of hazardous substances
+Waste treatment and disposal	Industrial waste water treatment	Coastal and river input of hazardous substances	Input of hazardous substances
+Waste treatment and disposal	Solid waste disposal (e.g. landfills)	Coastal and river input of hazardous substances	Input of hazardous substances
+Waste treatment and disposal	Solid waste disposal (e.g. landfills)	Input of climate change gases	Input of hazardous substances
+Waste treatment and disposal	Urban waste water treatment	Change in water temperature	Input of other forms of energy
+Waste treatment and disposal	Industrial waste water treatment	Change in water temperature	Input of other forms of energy
+Waste treatment and disposal	Urban waste water treatment	Input of climate change gases	Input of hazardous substances
+Waste treatment and disposal	Industrial waste water treatment	Input of climate change gases	Input of hazardous substances
+Waste treatment and disposal	Carbon capture and storage (Carbon sequestration)	Input of climate change gases	Input of hazardous substances
+Waste treatment and disposal	Carbon capture and storage (Carbon sequestration)	Impulsive noise	Input of sound
+Waste treatment and disposal	Carbon capture and storage (Carbon sequestration)	Hazardous substances input at sea	Input of hazardous substances
+Waste treatment and disposal	Solid waste disposal (e.g. landfills)	Input of organic matter	Input of organic matter
+Waste treatment and disposal	Urban waste water treatment	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Waste treatment and disposal	Industrial waste water treatment	Input of microbial pathogens	Input or introduction of biological material
+Waste treatment and disposal	Urban waste water treatment	Input of microbial pathogens	Input or introduction of biological material
+Waste treatment and disposal	Urban waste water treatment	Input of organic matter	Input of organic matter
+Waste treatment and disposal	Solid waste disposal (e.g. landfills)	Other forms of litter	Input of litter
+Waste treatment and disposal	Industrial waste water treatment	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Waste treatment and disposal	Solid waste disposal (e.g. landfills)	Riverine and coastal diffuse input of nutrients	Input of nutrients
+Waste treatment and disposal	Industrial waste water treatment	Input of organic matter	Input of organic matter
+Waste treatment and disposal	Urban waste water treatment	Other changes to hydrological conditions	Changes to hydrological conditions
+Waste treatment and disposal	Industrial waste water treatment	Other changes to hydrological conditions	Changes to hydrological conditions
+Waste treatment and disposal	Urban waste water treatment	Oxygen changes	Changes to hydrological conditions
+Waste treatment and disposal	Industrial waste water treatment	Oxygen changes	Changes to hydrological conditions
+Waste treatment and disposal	Urban waste water treatment	Other disturbance to species	Disturbance of species
+Waste treatment and disposal	Carbon capture and storage (Carbon sequestration)	Sealing	Physical loss
+Waste treatment and disposal	Industrial waste water treatment	Other disturbance to species	Disturbance of species
+Waste treatment and disposal	Urban waste water treatment	Salinity changes	Changes to hydrological conditions
+Waste treatment and disposal	Industrial waste water treatment	Salinity changes	Changes to hydrological conditions
+Waste treatment and disposal	Urban waste water treatment	Siltation	Physical disturbance
+Tourism and leisure infrastructure	Marinas and leisure harbours	Coastal and marine point source input of nutrients	Input of nutrients
+Tourism and leisure infrastructure	Piers	Continuous underwater noise	Input of sound
+Tourism and leisure infrastructure	Marinas and leisure harbours	Input of organic matter	Input of organic matter
+Tourism and leisure infrastructure	Marinas and leisure harbours	Hazardous substances input at sea	Input of hazardous substances
+Tourism and leisure infrastructure	Marinas and leisure harbours	Input of microbial pathogens	Input or introduction of biological material
+Tourism and leisure infrastructure	Marinas and leisure harbours	Input or spread of non-indigenous species	Input or introduction of biological material
+Tourism and leisure infrastructure	Piers	Other changes to hydrological conditions	Changes to hydrological conditions
+Tourism and leisure infrastructure	Marinas and leisure harbours	Continuous underwater noise	Input of sound
+Tourism and leisure infrastructure	Marinas and leisure harbours	Other disturbance to species	Disturbance of species
+Tourism and leisure infrastructure	Piers	Other disturbance to species	Disturbance of species
+Tourism and leisure infrastructure	Slipways	Other disturbance to species	Disturbance of species
+Tourism and leisure infrastructure	Marinas and leisure harbours	Input of light	Input of other forms of energy
+Tourism and leisure infrastructure	Marinas and leisure harbours	Other changes to hydrological conditions	Changes to hydrological conditions
+Tourism and leisure infrastructure	Slipways	Other changes to hydrological conditions	Changes to hydrological conditions
+Tourism and leisure infrastructure	Marinas and leisure harbours	Sealing	Physical loss
+Tourism and leisure infrastructure	Piers	Sealing	Physical loss
+Tourism and leisure infrastructure	Marinas and leisure harbours	Other forms of litter	Input of litter
+Tourism and leisure infrastructure	Slipways	Sealing	Physical loss
+Tourism and leisure infrastructure	Marinas and leisure harbours	Siltation	Physical disturbance
+Tourism and leisure infrastructure	Piers	Siltation	Physical disturbance
+Tourism and leisure infrastructure	Slipways	Siltation	Physical disturbance
+Tourism and leisure infrastructure	Marinas and leisure harbours	Smothering	Physical disturbance
+Tourism and leisure activities	Water sports (surface)	Beach litter	Input of litter
+Tourism and leisure activities	Wildlife watching	Beach litter	Input of litter
+Tourism and leisure activities	Beach use (bathing sites, beaches)	Beach litter	Input of litter
+Tourism and leisure activities	Beach use (bathing sites, beaches)	Extraction	Physical loss
+Tourism and leisure activities	Recreational boating, yachting	Air pollution of hazardous substances	Input of hazardous substances
+Tourism and leisure activities	Recreational boating, yachting	Input of microbial pathogens	Input or introduction of biological material
+Tourism and leisure activities	Beach use (bathing sites, beaches)	Input of microbial pathogens	Input or introduction of biological material
+Tourism and leisure activities	Recreational boating, yachting	Input of light	Input of other forms of energy
+Tourism and leisure activities	Beach use	Input of light	Input of other forms of energy
+Tourism and leisure activities	Water sports (surface)	Input of light	Input of other forms of energy
+Tourism and leisure activities	Recreational boating, yachting	Hazardous substances input at sea	Input of hazardous substances
+Tourism and leisure activities	Underwater cultural heritage	Hazardous substances input at sea	Input of hazardous substances
+Tourism and leisure activities	Recreational boating, yachting	Input of climate change gases	Input of hazardous substances
+Tourism and leisure activities	Water sports (surface)	Input of climate change gases	Input of hazardous substances
+Tourism and leisure activities	Recreational boating, yachting	Input or spread of non-indigenous species	Input or introduction of biological material
+Tourism and leisure activities	Recreational boating, yachting	Continuous underwater noise	Input of sound
+Tourism and leisure activities	Water sports (surface)	Continuous underwater noise	Input of sound
+Tourism and leisure activities	Underwater cultural heritage	Continuous underwater noise	Input of sound
+Tourism and leisure activities	Wildlife watching	Continuous underwater noise	Input of sound
+Tourism and leisure activities	Beach use (bathing sites, beaches)	Other disturbance to species	Disturbance of species
+Tourism and leisure activities	Beach use (bathing sites, beaches)	Input of organic matter	Input of organic matter
+Tourism and leisure activities	Recreational boating, yachting	Other disturbance to species	Disturbance of species
+Tourism and leisure activities	Recreational boating, yachting	Non-intentional extraction or injury to species (including bycatch)	Disturbance of species
+Tourism and leisure activities	Underwater cultural heritage	Other disturbance to species	Disturbance of species
+Tourism and leisure activities	Water sports (surface)	Other disturbance to species	Disturbance of species
+Tourism and leisure activities	Wildlife watching	Other disturbance to species	Disturbance of species
+Tourism and leisure activities	Recreational boating, yachting	Input of organic matter	Input of organic matter
+Tourism and leisure activities	Water sports (surface)	Input of organic matter	Input of organic matter
+Tourism and leisure activities	Beach use (bathing sites, beaches)	Other changes to hydrological conditions	Changes to hydrological conditions
+Tourism and leisure activities	Recreational boating, yachting	Other changes to hydrological conditions	Changes to hydrological conditions
+Tourism and leisure activities	Underwater cultural heritage	Other changes to hydrological conditions	Changes to hydrological conditions
+Tourism and leisure activities	Water sports (surface)	Other changes to hydrological conditions	Changes to hydrological conditions
+Tourism and leisure activities	Recreational boating, yachting	Other forms of litter	Input of litter
+Tourism and leisure activities	Beach use (bathing sites, beaches)	Other forms of litter	Input of litter
+Tourism and leisure activities	Underwater cultural heritage	Other forms of litter	Input of litter
+Tourism and leisure activities	Water sports (surface)	Other forms of litter	Input of litter
+Tourism and leisure activities	Wildlife watching	Other forms of litter	Input of litter
+Tourism and leisure activities	Beach use (bathing sites, beaches)	Abrasion	Physical disturbance
+Tourism and leisure activities	Underwater cultural heritage	Abrasion	Physical disturbance
+Tourism and leisure activities	Beach use (bathing sites, beaches)	Oxygen changes	Changes to hydrological conditions
+Tourism and leisure activities	Recreational boating, yachting	Oxygen changes	Changes to hydrological conditions
+Tourism and leisure activities	Wildlife watching	Abrasion	Physical disturbance
+Tourism and leisure activities	Water sports (surface)	Siltation	Physical disturbance
+Tourism and leisure activities	Recreational boating, yachting	Smothering	Physical disturbance
+Military operations	Military infrastructure (e.g. military firing ranges)	Input of climate change gases	Input of hazardous substances
+Military operations	Military exercises	Input of climate change gases	Input of hazardous substances
+Military operations	Waste disposal (munitions)	Input of climate change gases	Input of hazardous substances
+Military operations	Waste disposal (munitions)	Continuous underwater noise	Input of sound
+Military operations	Military infrastructure (e.g. military firing ranges)	Impulsive noise	Input of sound
+Military operations	Military exercises	Impulsive noise	Input of sound
+Military operations	Military exercises	Hazardous substances input at sea	Input of hazardous substances
+Military operations	Waste disposal (munitions)	Hazardous substances input at sea	Input of hazardous substances
+Military operations	Waste disposal (munitions)	Impulsive noise	Input of sound
+Military operations	Waste disposal (munitions)	Other disturbance to species	Disturbance of species
+Military operations	Military infrastructure (e.g. military firing ranges)	Continuous underwater noise	Input of sound
+Military operations	Military infrastructure (e.g. military firing ranges)	Other disturbance to species	Disturbance of species
+Military operations	Military infrastructure (e.g. military firing ranges)	Input of electromagnetic and seismic waves	Input of other forms of energy
+Military operations	Military infrastructure (e.g. military firing ranges)	Input or spread of non-indigenous species	Input or introduction of biological material
+Military operations	Military infrastructure	Input of microbial pathogens	Input or introduction of biological material
+Military operations	Military infrastructure (e.g. military firing ranges)	Other changes to hydrological conditions	Changes to hydrological conditions
+Military operations	Waste disposal (munitions)	Other changes to hydrological conditions	Changes to hydrological conditions
+Military operations	Waste disposal (munitions)	Abrasion	Physical disturbance
+Military operations	Military infrastructure (e.g. military firing ranges)	Abrasion	Physical disturbance
+Military operations	Waste disposal (munitions)	Smothering	Physical disturbance
+Military operations	Waste disposal (munitions)	Sealing	Physical loss
+Military operations	Military infrastructure (e.g. military firing ranges)	Sealing	Physical loss
+Military operations	Military exercises	Other forms of litter	Input of litter
+Military operations	Waste disposal (munitions)	Other forms of litter	Input of litter
+Military operations	Military infrastructure (e.g. military firing ranges)	Other forms of litter	Input of litter (solid waste matter, including micro-size litter)
+Research and survey	Environmental monitoring stations	Coastal and river input of hazardous substances	Input of hazardous substances
+Research and survey	Environmental monitoring stations	Extraction	Physical loss
+Research and survey	Seismic/geotechnical surveys	Impulsive noise	Input of sound
+Research and survey	Seismic/geotechnical surveys	Continuous underwater noise	Input of sound
+Research and survey	Fish surveys	Continuous underwater noise	Input of sound
+Research and survey	Seismic/geotechnical surveys	Input of electromagnetic and seismic waves	Input of other forms of energy
+Research and survey	Seismic/geotechnical surveys	Other disturbance to species	Disturbance of species
+Research and survey	Fish surveys	Other disturbance to species	Disturbance of species
+Research and survey	Environmental monitoring stations	Other disturbance to species	Disturbance of species
+Research and survey	Seismic/geotechnical surveys	Input of climate change gases	Input of hazardous substances
+Research and survey	Fish surveys	Input of climate change gases	Input of hazardous substances
+Research and survey	Environmental monitoring stations	Input of climate change gases	Input of hazardous substances
+Research and survey	Environmental monitoring stations	Other changes to hydrological conditions	Changes to hydrological conditions
+Research and survey	Fish surveys	Abrasion	Physical disturbance
+Research and survey	Environmental monitoring stations	Abrasion	Physical disturbance
+Research and survey	Seismic/geotechnical surveys	Abrasion	Physical disturbance
+Research and survey	Fish surveys	Input of genetically modified species and translocation of indigenous species	Input or introduction of biological material
+Research and survey	Fish surveys	Intentional extraction or injury to species	Extraction or injury to species
+Research and survey	Environmental monitoring stations	Intentional extraction or injury to species	Extraction of species
+`;
+
+  const parseTSV = (txt) => {
+    const lines = txt.split(/\r?\n/).filter(l => l.trim().length);
+    if (!lines.length) return [];
+    const header = lines[0].split('\t').map(s=>s.trim());
+    const idx = {
+      act2: header.indexOf('PROTECT_act_level2'),
+      act3: header.indexOf('PROTECT_act_level3'),
+      pres3: header.indexOf('PROTECT_pres_level3'),
+      pres2: header.indexOf('PROTECT_pres_level2')
+    };
+    const rows = [];
+    for (let i=1;i<lines.length;i++) {
+      const cols = lines[i].split('\t');
+      if (cols.length < 4) continue;
+      let act2 = (cols[idx.act2]||'').trim();
+      let act3 = (cols[idx.act3]||'').trim();
+      let pres2 = (cols[idx.pres2]||'').trim();
+      let pres3 = (cols[idx.pres3]||'').trim();
+
+      // --- Canalization / Canalisation handling ---
+      // Some datasets provide the *level-3 activity* in the act2 column (e.g., "Culverting/trenching"),
+      // but the matrix expects these under the level-2 parent "Canalization & other water course modifications".
+      const CANAL_PARENT = "Canalization & other water course modifications";
+      const canalChildRe = /^(Canalisation|Canalization|Culverting\/trenching|Coastal dams, weirs|Large-scale water deviation)$/i;
+
+      // If act2 is the parent written slightly differently, normalize it to the matrix label.
+      if (/^Canal(isation|ization)\s*(and\s*other\s*water\s*course\s*modifications|&\s*other\s*water\s*course\s*modifications)?$/i.test(act2)) {
+        act2 = CANAL_PARENT;
+      }
+
+      // If act2 looks like one of the level-3 children, promote it into act3 and set the parent.
+      if (canalChildRe.test(act2) && act2.toLowerCase() !== "canalization" && act2.toLowerCase() !== "canalisation") {
+        act3 = act2;
+        act2 = CANAL_PARENT;
+      }
+
+      rows.push({ act2, act3, pres2, pres3 });
+    }
+    return rows;
+  };
+
+  const normKey = (s) => (s||'')
+    .toLowerCase()
+    .replace(/&/g,'and')
+    .replace(/–|—/g,'-')
+    .replace(/\(.*?\)/g,'')
+    .replace(/[^a-z0-9]+/g,' ')
+    .trim();
+
+  const tokenSet = (s) => new Set(normKey(s).split(/\s+/).filter(Boolean));
+  const jaccard = (a,b) => {
+    const A = tokenSet(a), B = tokenSet(b);
+    if (!A.size || !B.size) return 0;
+    let inter = 0;
+    for (const t of A) if (B.has(t)) inter++;
+    const uni = A.size + B.size - inter;
+    return uni ? inter/uni : 0;
+  };
+
+  const svgActivityLabels = Object.keys(activityParts);
+  const svgPressureLabels = Object.keys(pressureParts);
+
+  const SVG_ACT_NORM_MAP = new Map(svgActivityLabels.map(l => [normKey(l), l]));
+const SVG_PRE_NORM_MAP = new Map(svgPressureLabels.map(l => [normKey(l), l]));
+
+// Explicit aliases for known naming differences between the dataset and the SVG
+const ACT_ALIAS = {
+  'transport air': 'Air',
+  'transport - air': 'Air',
+  'transport  air': 'Air',
+  'air': 'Air',
+
+  'transport land': 'Land',
+  'transport - land': 'Land',
+  'land': 'Land',
+
+  'transport shipping': 'Shipping',
+  'transport - shipping': 'Shipping',
+  'transport shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats': 'Shipping',
+  'transport shipping boats passenger': 'Shipping',
+  'transport shipping boats passenger shipping': 'Shipping',
+  'transport shipping boats passenger shipping  shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density  ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density   ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density    ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density     ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density      ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density       ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density        ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density         ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density          ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density           ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density            ': 'Shipping',
+  'transport shipping boats passenger shipping shipping density             ': 'Shipping',
+
+  'transport  shipping': 'Shipping',
+  'shipping': 'Shipping',
+  'transport–shipping': 'Shipping',
+  'transport shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport  shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+  'transport shipping boats passenger shipping shipping density': 'Shipping',
+
+  // keep these as-is if they already match:
+  'shipping': 'Shipping'
+};
+
+const inferActivity = (raw) => {
+  const k = normKey(raw);
+  if (!k) return null;
+
+  // Heuristic aliases (robust to different dash types because normKey() normalizes)
+  if (k.includes('transport') && k.includes('air')) return 'Air';
+  if (k.includes('transport') && k.includes('land')) return 'Land';
+  // Only treat as Shipping if the dataset says shipping/ship/boats AND doesn't also say "air/land transport"
+  if ((k.includes('shipping') || k.includes('ship') || k.includes('boats')) && !k.includes('air') && !k.includes('land')) return 'Shipping';
+
+  if (ACT_ALIAS[k]) return ACT_ALIAS[k];
+  if (SVG_ACT_NORM_MAP.has(k)) return SVG_ACT_NORM_MAP.get(k);
+
+  // Conservative "contains" match: accept only if it yields exactly one SVG label.
+  const candidates = [];
+  for (const [nk, label] of SVG_ACT_NORM_MAP.entries()) {
+    if (!nk) continue;
+    if (k === nk) return label;
+    if (k.includes(nk) || nk.includes(k)) candidates.push(label);
+  }
+  if (candidates.length === 1) return candidates[0];
+
+  return null;
+};
+
+const PRES_ALIAS = {
+  // Dataset sometimes includes a long clarification; SVG uses the short category
+  'input of litter solid waste matter including micro size litter': 'Input of litter',
+  'input of litter': 'Input of litter'
+};
+
+const inferPressure = (raw) => {
+  const k = normKey(raw);
+  if (!k) return null;
+
+  if (PRES_ALIAS[k]) return PRES_ALIAS[k];
+  if (SVG_PRE_NORM_MAP.has(k)) return SVG_PRE_NORM_MAP.get(k);
+
+  // Conservative "contains" match: accept only if it yields exactly one SVG label.
+  const candidates = [];
+  for (const [nk, label] of SVG_PRE_NORM_MAP.entries()) {
+    if (!nk) continue;
+    if (k === nk) return label;
+    if (k.includes(nk) || nk.includes(k)) candidates.push(label);
+  }
+  if (candidates.length === 1) return candidates[0];
+
+  return null;
+};
+
+  const L3_BY_L2 = {}; // { svgAct: { svgPres: [ {act3,pres3} ] } }
+
+  try {
+    const allRows = parseTSV(TSV_DATA);
+    for (const r of allRows) {
+      const act = inferActivity(r.act2);
+      const pres = inferPressure(r.pres2);
+      if (!act || !pres) continue;
+      if (!L3_BY_L2[act]) L3_BY_L2[act] = {};
+      if (!L3_BY_L2[act][pres]) L3_BY_L2[act][pres] = [];
+      L3_BY_L2[act][pres].push({act3:r.act3, pres3:r.pres3});
+    }
+  } catch (e) {
+    console.error('Level-3 mapping failed:', e);
+  }
+
+
+  const norm = (s) => (s || '').replace(/\s+/g,' ').trim();
+
   const toSvgPoint = (clientX, clientY) => {
     const pt = svg.createSVGPoint();
     pt.x = clientX; pt.y = clientY;
@@ -865,8 +1771,7 @@
     return { x:x0, y:y0, w:x1-x0, h:y1-y0, cx:(x0+x1)/2, cy:(y0+y1)/2 };
   };
 
-  const norm = (s) => (s || '').replace(/\s+/g,' ').trim();
-
+  // Build quick lookup for tspans by normalized text
   const tspanByText = new Map();
   svg.querySelectorAll('tspan').forEach(t => {
     const key = norm(t.textContent);
@@ -875,37 +1780,51 @@
     tspanByText.get(key).push(t);
   });
 
-  const activities = [];
-  for (const [id, parts] of Object.entries(activityParts)) {
-    const nodes = [];
-    for (const part of parts) {
-      const hits = tspanByText.get(norm(part)) || [];
-      hits.forEach(n => nodes.push(n));
+  const buildLabelRects = (partsMap) => {
+    const labels = [];
+    for (const [id, parts] of Object.entries(partsMap)) {
+      const nodes = [];
+      for (const part of parts) {
+        const hits = tspanByText.get(norm(part)) || [];
+        hits.forEach(n => nodes.push(n));
+      }
+      const uniq = Array.from(new Set(nodes));
+      if (!uniq.length) continue;
+
+      let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+      uniq.forEach(n => {
+        try {
+          const rr = screenRectToSvgRect(n);
+          x0 = Math.min(x0, rr.x);
+          y0 = Math.min(y0, rr.y);
+          x1 = Math.max(x1, rr.x + rr.w);
+          y1 = Math.max(y1, rr.y + rr.h);
+        } catch (_) {}
+      });
+      if (!isFinite(x0) || !isFinite(y0) || !isFinite(x1) || !isFinite(y1)) continue;
+
+      labels.push({ id, rect:{x:x0,y:y0,w:x1-x0,h:y1-y0}, cy:(y0+y1)/2 });
     }
-    const uniq = Array.from(new Set(nodes));
-    if (!uniq.length) continue;
+    return labels;
+  };
 
-    let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
-    uniq.forEach(n => {
-      try {
-        const rr = screenRectToSvgRect(n);
-        x0 = Math.min(x0, rr.x);
-        y0 = Math.min(y0, rr.y);
-        x1 = Math.max(x1, rr.x + rr.w);
-        y1 = Math.max(y1, rr.y + rr.h);
-      } catch (_) {}
-    });
-    if (!isFinite(x0) || !isFinite(y0) || !isFinite(x1) || !isFinite(y1)) continue;
+  const activities = buildLabelRects(activityParts);
+  const pressures = buildLabelRects(pressureParts);
 
-    activities.push({ id, rect:{x:x0,y:y0,w:x1-x0,h:y1-y0}, cy:(y0+y1)/2 });
-  }
-
+  // --- Build hit layers ---
   svg.querySelector('#activityHitLayer')?.remove();
-  const hitLayer = document.createElementNS('http://www.w3.org/2000/svg','g');
-  hitLayer.setAttribute('id','activityHitLayer');
-  svg.appendChild(hitLayer);
+  svg.querySelector('#pressureHitLayer')?.remove();
+
+  const activityHitLayer = document.createElementNS('http://www.w3.org/2000/svg','g');
+  activityHitLayer.setAttribute('id','activityHitLayer');
+  svg.appendChild(activityHitLayer);
+
+  const pressureHitLayer = document.createElementNS('http://www.w3.org/2000/svg','g');
+  pressureHitLayer.setAttribute('id','pressureHitLayer');
+  svg.appendChild(pressureHitLayer);
 
   const PAD_X = 10, PAD_Y = 4;
+
   activities.forEach(a => {
     const b = a.rect;
     const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -917,9 +1836,24 @@
     r.setAttribute('data-activity', a.id);
     r.style.cursor = 'pointer';
     r.style.pointerEvents = 'all';
-    hitLayer.appendChild(r);
+    activityHitLayer.appendChild(r);
   });
 
+  pressures.forEach(p => {
+    const b = p.rect;
+    const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    r.setAttribute('x', b.x - PAD_X);
+    r.setAttribute('y', b.y - PAD_Y);
+    r.setAttribute('width', b.w + PAD_X*2);
+    r.setAttribute('height', b.h + PAD_Y*2);
+    r.setAttribute('fill','transparent');
+    r.setAttribute('data-pressure', p.id);
+    r.style.cursor = 'pointer';
+    r.style.pointerEvents = 'all';
+    pressureHitLayer.appendChild(r);
+  });
+
+  // --- Find the link paths (same as before) ---
   const allPaths = Array.from(svg.querySelectorAll('path'));
   const linkPaths = allPaths.filter(p => {
     const style = (p.getAttribute('style') || '').toLowerCase();
@@ -960,63 +1894,167 @@
     return {x:bestX, y:bestY};
   };
 
-  const nearestActivityByY = (y) => {
+  const rightMostPointSvg = (path) => {
+    const L = path.getTotalLength();
+    const samples = 70;
+    let bestX = -Infinity, bestY = 0;
+    for (let i=0;i<=samples;i++){
+      const pt = path.getPointAtLength(L*(i/samples));
+      const ctm = path.getScreenCTM();
+      if (!ctm) continue;
+      const sp = svg.createSVGPoint();
+      sp.x = pt.x; sp.y = pt.y;
+      const screen = sp.matrixTransform(ctm);
+      const svgPt = toSvgPoint(screen.x, screen.y);
+      if (svgPt.x > bestX) { bestX = svgPt.x; bestY = svgPt.y; }
+    }
+    return {x:bestX, y:bestY};
+  };
+
+  const nearestByY = (items, y) => {
     let best=null, bestD=Infinity;
-    for (const a of activities) {
+    for (const a of items) {
       const d = Math.abs(a.cy - y);
       if (d < bestD) { bestD=d; best=a; }
     }
     return best;
   };
 
+  // Map each link path to nearest activity (by left-most y) and nearest pressure (by right-most y)
   linkPaths.forEach(p => {
     try {
       const lm = leftMostPointSvg(p);
-      const a = nearestActivityByY(lm.y);
+      const a = nearestByY(activities, lm.y);
       if (a) p.setAttribute('data-activity', a.id);
+    } catch (_) {}
+    try {
+      const rm = rightMostPointSvg(p);
+      const pr = nearestByY(pressures, rm.y);
+      if (pr) p.setAttribute('data-pressure', pr.id);
     } catch (_) {}
   });
 
+  // --- UI state ---
   const status = document.getElementById('status');
-  let active = null;
+  const elActName = document.getElementById('activityName');
+  const elPrName = document.getElementById('pressureName');
+  const elActDetails = document.getElementById('activityDetails');
+  const elPrDetails = document.getElementById('pressureDetails');
 
-  const setActive = (id) => {
-    active = id;
+  let selectedActivity = null;
+  let selectedPressure = null;
+
+  const renderDetails = () => {
+    if (elActName) elActName.textContent = selectedActivity || 'None';
+    if (elPrName) elPrName.textContent = selectedPressure || 'None';
+    const NO_DATA = '(No level-3 items found for this selection)';
+
+    if (selectedActivity && selectedPressure) {
+      const pairs = (L3_BY_L2[selectedActivity] && L3_BY_L2[selectedActivity][selectedPressure]) ? L3_BY_L2[selectedActivity][selectedPressure] : [];
+      if (pairs.length) {
+        if (elActDetails) elActDetails.textContent = pairs.map(p=>p.act3).join('\n');
+        if (elPrDetails)  elPrDetails.textContent  = pairs.map(p=>p.pres3).join('\n');
+      } else {
+        if (elActDetails) elActDetails.textContent = NO_DATA;
+        if (elPrDetails)  elPrDetails.textContent  = NO_DATA;
+      }
+      return;
+    }
+
+    if (selectedActivity) {
+      const byPres = L3_BY_L2[selectedActivity] || {};
+      const uniq = Array.from(new Set(Object.values(byPres).flat().map(p=>p.act3))).sort();
+      if (elActDetails) elActDetails.textContent = uniq.length ? uniq.join('\n') : NO_DATA;
+      if (elPrDetails)  elPrDetails.textContent  = '';
+      return;
+    }
+
+    if (selectedPressure) {
+      const presList = [];
+      for (const act of Object.keys(L3_BY_L2)) {
+        const arr = (L3_BY_L2[act] && L3_BY_L2[act][selectedPressure]) ? L3_BY_L2[act][selectedPressure] : [];
+        for (const p of arr) presList.push(p.pres3);
+      }
+      const uniq = Array.from(new Set(presList)).sort();
+      if (elPrDetails)  elPrDetails.textContent  = uniq.length ? uniq.join('\n') : NO_DATA;
+      if (elActDetails) elActDetails.textContent = '';
+      return;
+    }
+
+    if (elActDetails) elActDetails.textContent = '';
+    if (elPrDetails)  elPrDetails.textContent  = '';
+  };
+
+  const applyFilter = () => {
     let shown = 0;
     linkPaths.forEach(p => {
-      const on = (p.getAttribute('data-activity') === id);
+      const a = p.getAttribute('data-activity');
+      const pr = p.getAttribute('data-pressure');
+
+      const okA = !selectedActivity || a === selectedActivity;
+      const okP = !selectedPressure || pr === selectedPressure;
+
+      const on = okA && okP && (selectedActivity || selectedPressure);
       p.classList.toggle('on', on);
       if (on) shown++;
     });
-    if (status) status.textContent = id ? `Showing lines for: ${id} (${shown} links)` : 'Click an activity label to show only its lines.';
+
+    const label = (selectedActivity && selectedPressure)
+      ? `Showing: ${selectedActivity} → ${selectedPressure} (${shown} links)`
+      : (selectedActivity ? `Showing lines for: ${selectedActivity} (${shown} links)`
+        : (selectedPressure ? `Showing lines for: ${selectedPressure} (${shown} links)`
+          : 'Click an activity label to show only its lines.'));
+
+    if (status) status.textContent = label;
+    renderDetails();
   };
 
   const reset = () => {
-    active = null;
+    selectedActivity = null;
+    selectedPressure = null;
     linkPaths.forEach(p => p.classList.remove('on'));
     if (status) status.textContent = 'Click an activity label to show only its lines.';
+    renderDetails();
   };
 
-  const getActivityIdFromTarget = (t) => {
+  // Expose reset so "Show all" can clear state safely
+  window.__matrixReset = reset;
+
+  const getAttrFromTarget = (t, attr) => {
     while (t && t !== svg) {
-      if (t.getAttribute && t.getAttribute('data-activity')) return t.getAttribute('data-activity');
+      if (t.getAttribute && t.getAttribute(attr)) return t.getAttribute(attr);
       t = t.parentNode;
     }
     return null;
   };
 
   svg.addEventListener('pointerup', (e) => {
-    const id = getActivityIdFromTarget(e.target);
-    if (!id) return;
-    if (active === id) reset();
-    else setActive(id);
+    const act = getAttrFromTarget(e.target, 'data-activity');
+    const pr  = getAttrFromTarget(e.target, 'data-pressure');
+
+    // Clicking activity hitbox
+    if (act) {
+      selectedActivity = (selectedActivity === act) ? null : act;
+      applyFilter();
+      return;
+    }
+
+    // Clicking pressure hitbox
+    if (pr) {
+      selectedPressure = (selectedPressure === pr) ? null : pr;
+      applyFilter();
+      return;
+    }
   });
 
   document.getElementById('resetBtn')?.addEventListener('click', reset);
   document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') reset(); });
 
-  const mapped = linkPaths.filter(p => p.getAttribute('data-activity')).length;
-  if (status) status.textContent = `Loaded. Found ${activities.length} activities, ${linkPaths.length} links, ${mapped} mapped. Click an activity.`;
+  // Initial state
+  renderDetails();
+  const mappedA = linkPaths.filter(p => p.getAttribute('data-activity')).length;
+  const mappedP = linkPaths.filter(p => p.getAttribute('data-pressure')).length;
+  if (status) status.textContent = `Loaded. Found ${activities.length} activities, ${pressures.length} pressures, ${linkPaths.length} links. Mapped: ${mappedA} activities, ${mappedP} pressures. Click an activity.`;
   linkPaths.forEach(p => p.classList.remove('on'));
 })();
 </script>
