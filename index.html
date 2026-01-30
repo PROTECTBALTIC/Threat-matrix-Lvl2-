@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
 
 <style>
-  html,body{margin:0;background:#fff}
+  html,body{margin:0;background:#fff;font-family:'Source Sans 3', Arial, sans-serif}
   .wrap{max-width:1300px;margin:0 auto;padding:14px}
   #matrixSvg{width:100%;height:auto;display:block}
   #matrixSvg .activity-label{cursor:pointer}
@@ -28,7 +28,98 @@
   .details{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0 0;padding:12px;border:1px solid rgba(0,0,0,.12);border-radius:12px}
   .details-title{font:700 12px/1.2 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;letter-spacing:.02em;color:rgba(0,0,0,.6);text-transform:uppercase}
   .details-name{font:700 16px/1.2 "Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;margin:6px 0 8px}
-  .details-list{font:500 14px/1.35 "Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:rgba(0,0,0,.78);white-space:pre-line}
+  .details-list{font:500 14px/1.35 "Source Sans 3",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:rgba(0,0,0,.78)}
+.details-list .lvl{margin:0 0 8px}
+.details-list .lvl-k{font-weight:700;color:rgba(0,0,0,.65)}
+.details-list .group{margin:8px 0 0}
+.details-list .group-title{font-weight:700;margin:6px 0 4px;color:rgba(0,0,0,.85)}
+.details-list ul{margin:4px 0 10px 18px;padding:0}
+.details-list li{margin:2px 0}
+.details-list .muted{color:rgba(0,0,0,.55)}
+
+
+/* Level-1 clickable labels */
+.l1-btn { cursor: pointer; }
+.l1-text { cursor: pointer; }
+.l1-text:hover, .l1-text.active { text-decoration: underline; }
+/* Level-1 clickable pressure labels */
+.pl1-btn { cursor: pointer; }
+.pl1-text { cursor: pointer; }
+.pl1-text:hover, .pl1-text.active { text-decoration: underline; }
+
+/* Selected state highlights (makes selection obvious on the graphic) */
+#activityHitLayer rect.selected, #pressureHitLayer rect.selected{
+  fill: rgba(0,0,0,0.06);
+  stroke: #111;
+  stroke-width: 2;
+}
+.l1-text.active, .pl1-text.active{
+  fill: #111 !important;
+  font-weight: 700;
+}
+
+
+  hr.sep{border:0;border-top:1px solid #e6e6e6;margin:10px 0;}
+
+  /* --- Option B chips (directness + strength) --- */
+  .chipset{display:flex;flex-wrap:wrap;gap:6px;margin-left:10px}
+
+  .chip{
+    display:inline-flex;align-items:center;gap:7px;
+    padding:2px 9px;border-radius:999px;
+    border:1px solid rgba(60,64,67,0.55);
+    background:#f6f7f8;
+    font-size:12px;line-height:1.2;white-space:nowrap;
+  }
+
+  /* directness: make shapes obviously different */
+  .chip.direct{border-style:solid}
+  .chip.indirect{
+  border-style:dashed;
+  position:relative;
+  overflow:hidden;
+}
+.chip.indirect::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:repeating-linear-gradient(45deg,
+    rgba(0,0,0,0.08),
+    rgba(0,0,0,0.08) 5px,
+    rgba(0,0,0,0.00) 5px,
+    rgba(0,0,0,0.00) 10px);
+  opacity:0.35;
+  pointer-events:none;
+}
+
+  .chip.both{
+    border-width:2px;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.10);
+  }
+
+  .chip .sym{font-weight:800;letter-spacing:0.2px}
+/* strength colours (red/yellow/green/grey) */
+.chip.str-weak{background:#f4b6b2 !important;border-color:#d93025 !important;color:#111 !important}
+.chip.str-medium{background:#ffe08a !important;border-color:#f29900 !important;color:#111 !important}
+.chip.str-strong{background:#a8e6c1 !important;border-color:#188038 !important;color:#111 !important}
+.chip.str-na{background:#e0e0e0 !important;border-color:#5f6368 !important;color:#111 !important}
+
+  /* Activity pill (rounded rectangle) to visually align with selected activity colours */
+  .a3pill{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid rgba(60,64,67,0.25);
+    background:rgba(60,64,67,0.06);
+  }
+  
+  .legend{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:12px;color:#444;margin-top:8px;font-family:inherit}
+  .legend .legend-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:6px}
+.legend .item{display:inline-flex;align-items:center;gap:6px}
+  .legend .key{font-weight:700}
+  .legend .toggle{cursor:pointer;user-select:none}
+  .legend .toggle input{accent-color:#444; width:13px; height:13px}
+
 
 </style>
 </head>
@@ -806,6 +897,22 @@
     <div id="pressureName" class="details-name">None</div>
     <div id="pressureDetails" class="details-list"></div>
   </div>
+  <div class="legend" id="linkLegend">
+    <div class="legend-row">
+      <span class="item"><span class="key">Directness:</span></span>
+      <label class="item toggle"><input type="checkbox" id="dir_direct" checked><span class="sym">➜</span> Direct</label>
+      <label class="item toggle"><input type="checkbox" id="dir_indirect" checked><span class="sym">↝</span> Indirect</label>
+      <label class="item toggle"><input type="checkbox" id="dir_both" checked><span class="sym">⇄</span> Both</label>
+    </div>
+    <div class="legend-row">
+      <span class="item"><span class="key">Strength:</span></span>
+      <label class="item toggle"><input type="checkbox" id="str_weak" checked><span class="chip str-weak">Weak</span></label>
+      <label class="item toggle"><input type="checkbox" id="str_medium" checked><span class="chip str-medium">Medium</span></label>
+      <label class="item toggle"><input type="checkbox" id="str_strong" checked><span class="chip str-strong">Strong</span></label>
+      <label class="item toggle"><input type="checkbox" id="str_na" checked><span class="chip str-na">N/A</span></label>
+    </div>
+</div>
+
 </div>
 
 <div class="toolbar">
@@ -829,6 +936,18 @@ function normalizeLabel(s) {
 
 
 (() => {
+  // Directness filter toggles (controls which link chips are shown)
+  const dirFilter = { direct: true, indirect: true, both: true };
+  const strFilter = { weak: true, medium: true, strong: true, na: true };
+  const isDirEnabled = (d) => {
+    const k = (d || '').toString().trim().toLowerCase();
+    return k && Object.prototype.hasOwnProperty.call(dirFilter, k) ? !!dirFilter[k] : true;
+  };
+  const isStrEnabled = (s) => {
+    const k = (s || '').toString().trim().toLowerCase();
+    return k && Object.prototype.hasOwnProperty.call(strFilter, k) ? !!strFilter[k] : true;
+  };
+
   const svg = document.getElementById('matrixSvg');
   if (!svg) return;
 
@@ -1941,82 +2060,1047 @@ const inferPressure = (raw) => {
   const elActDetails = document.getElementById('activityDetails');
   const elPrDetails = document.getElementById('pressureDetails');
 
-  let selectedActivity = null;
-  let selectedPressure = null;
+  let manualActivities = new Set();      // direct Level-2 activity clicks
+let manualPressures  = new Set();      // direct Level-2 pressure clicks
+let activeL1s        = new Set();      // selected Level-1 activity headings
+let activePL1s       = new Set();      // selected Level-1 pressure headings
 
-  const renderDetails = () => {
-    if (elActName) elActName.textContent = selectedActivity || 'None';
-    if (elPrName) elPrName.textContent = selectedPressure || 'None';
-    const NO_DATA = '(No level-3 items found for this selection)';
+// Effective selections used for filtering (union of manual + Level-1 derived)
+let selectedActivities = new Set();
+let selectedPressures  = new Set();
 
-    if (selectedActivity && selectedPressure) {
-      const pairs = (L3_BY_L2[selectedActivity] && L3_BY_L2[selectedActivity][selectedPressure]) ? L3_BY_L2[selectedActivity][selectedPressure] : [];
-      if (pairs.length) {
-        if (elActDetails) elActDetails.textContent = pairs.map(p=>p.act3).join('\n');
-        if (elPrDetails)  elPrDetails.textContent  = pairs.map(p=>p.pres3).join('\n');
+  // --- Hierarchy maps for the details panel (Level 1 -> Level 2) ---
+  // Kept here (near UI state) so the details renderer can format Level 1/2/3 nicely.
+  const L1_TO_L2_CANON = {
+    "CULTIVATION OF LIVING RESOURCES": ["Aquaculture","Agriculture","Forestry"],
+    "PRODUCTION OF ENERGY": ["Renewable energy generation","Non-renewable energy generation","Transmission of electricity and communications"],
+    "EXTRACTION OF LIVING RESOURCES": ["Fish and shellfish harvesting (professional, recreational)","Fish and shellfish processing","Management of fish stocks and gaming","Hunting and collecting for other purposes","Marine plant harvesting"],
+    "EXTRACTION OF NON-LIVING RESOURCES": ["Extraction of minerals","Extraction of oil and gas","Abstraction of water"],
+    "PHYSICAL RESTRUCTURING OF COASTLINE OR SEABED": ["Land claim","Restructuring of seabed morphology","Canalisation and other watercourse modifications","Coastal defence and flood protection","Offshore structures (other than for energy production/extraction)"],
+    "TRANSPORT": ["Shipping","Air","Land","Transport infrastructure"],
+    "URBAN & INDUSTRIAL USES": ["Urban uses","Industrial uses","Waste treatment and disposal"],
+    "TOURISM & LEISURE": ["Tourism and leisure infrastructure","Tourism and leisure activities"],
+    "SECURITY & DEFENCE": ["Military operations"],
+    "EDUCATION & RESEARCH": ["Research and survey"],
+    "ACTIVITIES & SOURCES OUTSIDE THE BALTIC SEA REGION": ["Activities and sources outside the Baltic Sea region"]
+  };
+
+  const PL1_TO_P2_CANON = {
+    "PHYSICAL": ["Physical loss","Physical disturbance"],
+    "HYDROLOGICAL": ["Changes to hydrological conditions"],
+    "ENERGY": ["Input of sound","Input of other forms of energy"],
+    "SUBSTANCES": ["Input of organic matter","Input of hazardous substances","Input of litter","Input of nutrients"],
+    "BIOLOGICAL": ["Disturbance of species","Extraction or injury to species","Input or introduction of biological material"]
+  };
+
+  // Canonicalize keys so "&" vs "and", Canalisation vs Canalization, and small spacing differences map correctly
+  const canonKey = (s) => (s ?? '')
+    .toString()
+    .trim()
+    .replace(/\s+/g,' ')
+    .replace(/&/g,' and ')
+    .replace(/\s+/g,' ')
+    .replace(/canalisation/gi,'canalization')
+    .replace(/canalization/gi,'canalization')
+    .replace(/water\s+course/gi,'watercourse')
+    .toLowerCase();
+
+  // Link attributes from PROTECT_links.tsv.xlsx (embedded)
+  const LINK_ATTR = new Map([
+  ['(industrial) animal farming||change of habitat location, size and/or quality||disturbance of species',{d:'both',s:'weak'}],
+  ['(industrial) animal farming||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['(industrial) animal farming||input of climate change gases||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['(industrial) animal farming||input of microbial pathogens||input or introduction of biological material',{d:'indirect',s:'strong'}],
+  ['(industrial) animal farming||input of organic matter||input of organic matter',{d:'indirect',s:'strong'}],
+  ['(industrial) animal farming||other changes to hydrological conditions||changes to hydrological conditions',{d:'indirect',s:'weak'}],
+  ['(industrial) animal farming||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'indirect',s:'strong'}],
+  ['abandonment of aquaculture||beach litter||input of litter',{d:'both',s:'weak'}],
+  ['abandonment of aquaculture||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['abandonment of aquaculture||other forms of litter||input of litter',{d:'both',s:'weak'}],
+  ['abstraction of water||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'medium'}],
+  ['abstraction of water||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['abstraction of water||salinity changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['activities and sources outside the baltic sea region||air pollution of hazardous substances||input of hazardous substances',{d:'indirect',s:'medium'}],
+  ['activities and sources outside the baltic sea region||input or spread of non-indigenous species||input or introduction of biological material',{d:'indirect',s:'medium'}],
+  ['activities and sources outside the baltic sea region||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'indirect',s:'medium'}],
+  ['air transport infrastructure||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'medium'}],
+  ['air transport infrastructure||input of climate change gases||input of hazardous substances',{d:'indirect',s:'medium'}],
+  ['algae cultivation||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'medium'}],
+  ['algae cultivation||input of genetically modified species and translocation of indigenous species||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['algae cultivation||input of light||input of other forms of energy',{d:'both',s:'medium'}],
+  ['algae cultivation||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['algae cultivation||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['algae cultivation||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['algae cultivation||siltation||physical disturbance',{d:'both',s:'strong'}],
+  ['aquaculture - fresh water||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['aquaculture - fresh water||input of climate change gases||input of hazardous substances',{d:'indirect',s:'medium'}],
+  ['aquaculture - fresh water||input of organic matter||input of organic matter',{d:'indirect',s:'weak'}],
+  ['aquaculture - fresh water||other disturbance to species||disturbance of species',{d:'indirect',s:'weak'}],
+  ['aquaculture - fresh water||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'indirect',s:'weak'}],
+  ['artificial reefs and islands||change of habitat location, size and/or quality||disturbance of species',{d:'direct',s:'nan'}],
+  ['artificial reefs and islands||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['artificial reefs and islands||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['artificial reefs and islands||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['artificial reefs and islands||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['artificial reefs and islands||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['artificial reefs and islands||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['bait collection (digging)||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['bait collection (digging)||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'weak'}],
+  ['beach replenishment/ nourishment||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['beach replenishment/ nourishment||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['beach replenishment/ nourishment||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'strong'}],
+  ['beach replenishment/ nourishment||input of organic matter||input of organic matter',{d:'indirect',s:'weak'}],
+  ['beach replenishment/ nourishment||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'weak'}],
+  ['beach replenishment/ nourishment||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['beach replenishment/ nourishment||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['beach replenishment/ nourishment||sealing||physical loss',{d:'direct',s:'weak'}],
+  ['beach replenishment/ nourishment||siltation||physical disturbance',{d:'both',s:'strong'}],
+  ['beach use (bathing sites, beaches)||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['beach use (bathing sites, beaches)||beach litter||input of litter',{d:'both',s:'strong'}],
+  ['beach use (bathing sites, beaches)||extraction||physical loss',{d:'direct',s:'weak'}],
+  ['beach use (bathing sites, beaches)||input of microbial pathogens||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['beach use (bathing sites, beaches)||input of organic matter||input of organic matter',{d:'direct',s:'medium'}],
+  ['beach use (bathing sites, beaches)||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['beach use (bathing sites, beaches)||other disturbance to species||disturbance of species',{d:'direct',s:'medium'}],
+  ['beach use (bathing sites, beaches)||other forms of litter||input of litter',{d:'both',s:'strong'}],
+  ['beach use (bathing sites, beaches)||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['beach use||input of light||input of other forms of energy',{d:'both',s:'weak'}],
+  ['benthic seining||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['benthic seining||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['benthic seining||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['benthic seining||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['benthic seining||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['benthic seining||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['benthic seining||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['benthic seining||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['benthic trawling||abrasion||physical disturbance',{d:'direct',s:'strong'}],
+  ['benthic trawling||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['benthic trawling||extraction||physical loss',{d:'direct',s:'weak'}],
+  ['benthic trawling||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'medium'}],
+  ['benthic trawling||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['benthic trawling||input of light||input of other forms of energy',{d:'both',s:'weak'}],
+  ['benthic trawling||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['benthic trawling||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['benthic trawling||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['benthic trawling||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['benthic trawling||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['benthic trawling||siltation||physical disturbance',{d:'both',s:'strong'}],
+  ['breakwaters||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['breakwaters||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['breakwaters||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['breakwaters||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['breakwaters||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['bridges and causeways||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['bridges and causeways||impulsive noise||input of sound',{d:'direct',s:'weak'}],
+  ['bridges and causeways||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['bridges and causeways||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['bridges and causeways||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['bridges and causeways||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['bridges and causeways||siltation||physical disturbance',{d:'both',s:'weak'}],
+  ['cables||abrasion||physical disturbance',{d:'direct',s:'medium'}],
+  ['cables||change in water temperature||input of other forms of energy',{d:'direct',s:'medium'}],
+  ['cables||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['cables||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['cables||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['cables||input of electromagnetic and seismic waves||input of other forms of energy',{d:'direct',s:'strong'}],
+  ['cables||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['canalisation||change of habitat location, size and/or quality||disturbance of species',{d:'direct',s:'nan'}],
+  ['canalisation||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['canalisation||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['canalisation||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['canalisation||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['canalisation||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['carbon capture and storage (carbon sequestration)||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['carbon capture and storage (carbon sequestration)||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['carbon capture and storage (carbon sequestration)||impulsive noise||input of sound',{d:'direct',s:'weak'}],
+  ['carbon capture and storage (carbon sequestration)||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['carbon capture and storage (carbon sequestration)||sealing||physical loss',{d:'direct',s:'medium'}],
+  ['coastal dams, weirs||abrasion||physical disturbance',{d:'direct',s:'strong'}],
+  ['coastal dams, weirs||change of habitat location, size and/or quality||disturbance of species',{d:'direct',s:'nan'}],
+  ['coastal dams, weirs||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['coastal dams, weirs||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['coastal dams, weirs||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['coastal dams, weirs||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['coastal dams, weirs||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['coastal dams, weirs||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['crop farming for animal feed||change of habitat location, size and/or quality||disturbance of species',{d:'both',s:'weak'}],
+  ['crop farming for animal feed||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['crop farming for animal feed||input of climate change gases||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['crop farming for animal feed||input of organic matter||input of organic matter',{d:'indirect',s:'strong'}],
+  ['crop farming for animal feed||other changes to hydrological conditions||changes to hydrological conditions',{d:'indirect',s:'weak'}],
+  ['crop farming for animal feed||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'indirect',s:'strong'}],
+  ['crop farming for human food||change of habitat location, size and/or quality||disturbance of species',{d:'both',s:'weak'}],
+  ['crop farming for human food||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['crop farming for human food||input of climate change gases||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['crop farming for human food||input of organic matter||input of organic matter',{d:'indirect',s:'strong'}],
+  ['crop farming for human food||other changes to hydrological conditions||changes to hydrological conditions',{d:'indirect',s:'weak'}],
+  ['crop farming for human food||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'indirect',s:'strong'}],
+  ['culverting/trenching||change in water temperature||input of other forms of energy',{d:'direct',s:'medium'}],
+  ['culverting/trenching||change of habitat location, size and/or quality||disturbance of species',{d:'direct',s:'nan'}],
+  ['culverting/trenching||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['culverting/trenching||extraction||physical loss',{d:'direct',s:'weak'}],
+  ['culverting/trenching||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['culverting/trenching||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['culverting/trenching||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['culverting/trenching||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['culverting/trenching||salinity changes||changes to hydrological conditions',{d:'both',s:'strong'}],
+  ['decommission of wind turbines||impulsive noise||input of sound',{d:'direct',s:'strong'}],
+  ['decommission of wind turbines||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['decommission of wind turbines||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['decommission of wind turbines||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['decommission of wind turbines||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['decommission of wind turbines||smothering||physical disturbance',{d:'direct',s:'strong'}],
+  ['demersal long lining||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['demersal long lining||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['demersal long lining||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['demersal long lining||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['demersal long lining||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['demersal long lining||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['demersal long lining||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['demersal long lining||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['depositing dredged material||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['depositing dredged material||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'strong'}],
+  ['depositing dredged material||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['depositing dredged material||input of organic matter||input of organic matter',{d:'direct',s:'weak'}],
+  ['depositing dredged material||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['depositing dredged material||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['depositing dredged material||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['depositing dredged material||smothering||physical disturbance',{d:'direct',s:'strong'}],
+  ['dredging||change of habitat location, size and/or quality||disturbance of species',{d:'direct',s:'nan'}],
+  ['dredging||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['dredging||continuous underwater noise||input of sound',{d:'direct',s:'strong'}],
+  ['dredging||extraction||physical loss',{d:'direct',s:'strong'}],
+  ['dredging||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'strong'}],
+  ['dredging||impulsive noise||input of sound',{d:'direct',s:'strong'}],
+  ['dredging||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['dredging||input of organic matter||input of organic matter',{d:'both',s:'medium'}],
+  ['dredging||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'weak'}],
+  ['dredging||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['dredging||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['dredging||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['dredging||salinity changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['dredging||smothering||physical disturbance',{d:'direct',s:'strong'}],
+  ['environmental monitoring stations||abrasion||physical disturbance',{d:'both',s:'weak'}],
+  ['environmental monitoring stations||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['environmental monitoring stations||extraction||physical loss',{d:'both',s:'weak'}],
+  ['environmental monitoring stations||input of climate change gases||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['environmental monitoring stations||intentional extraction or injury to species||extraction of species',{d:'both',s:'weak'}],
+  ['environmental monitoring stations||other changes to hydrological conditions||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['environmental monitoring stations||other disturbance to species||disturbance of species',{d:'both',s:'weak'}],
+  ['extraction of metal ores||abrasion||physical disturbance',{d:'direct',s:'medium'}],
+  ['extraction of metal ores||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['extraction of metal ores||extraction||physical loss',{d:'direct',s:'strong'}],
+  ['extraction of metal ores||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['extraction of metal ores||impulsive noise||input of sound',{d:'direct',s:'weak'}],
+  ['extraction of metal ores||input of climate change gases||input of hazardous substances',{d:'both',s:'strong'}],
+  ['extraction of metal ores||input of electromagnetic and seismic waves||input of other forms of energy',{d:'direct',s:'weak'}],
+  ['extraction of metal ores||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['extraction of metal ores||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'weak'}],
+  ['extraction of metal ores||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'medium'}],
+  ['extraction of metal ores||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['extraction of metal ores||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['extraction of metal ores||salinity changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['extraction of sand and gravel||continuous underwater noise||input of sound',{d:'direct',s:'strong'}],
+  ['extraction of sand and gravel||extraction||physical loss',{d:'direct',s:'medium'}],
+  ['extraction of sand and gravel||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'medium'}],
+  ['extraction of sand and gravel||impulsive noise||input of sound',{d:'direct',s:'strong'}],
+  ['extraction of sand and gravel||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['extraction of sand and gravel||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['extraction of sand and gravel||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'weak'}],
+  ['extraction of sand and gravel||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['extraction of sand and gravel||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['extraction of sand and gravel||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['extraction of sand and gravel||smothering||physical disturbance',{d:'direct',s:'strong'}],
+  ['finfish mariculture (aquaculture)||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['finfish mariculture (aquaculture)||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['finfish mariculture (aquaculture)||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'medium'}],
+  ['finfish mariculture (aquaculture)||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['finfish mariculture (aquaculture)||input of genetically modified species and translocation of indigenous species||input or introduction of biological material',{d:'both',s:'strong'}],
+  ['finfish mariculture (aquaculture)||input of microbial pathogens||input or introduction of biological material',{d:'both',s:'strong'}],
+  ['finfish mariculture (aquaculture)||input of organic matter||input of organic matter',{d:'both',s:'strong'}],
+  ['finfish mariculture (aquaculture)||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['finfish mariculture (aquaculture)||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['finfish mariculture (aquaculture)||other disturbance to species||disturbance of species',{d:'direct',s:'medium'}],
+  ['finfish mariculture (aquaculture)||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['finfish mariculture (aquaculture)||sealing||physical loss',{d:'direct',s:'weak'}],
+  ['finfish mariculture (aquaculture)||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['finfish mariculture||input of light||input of other forms of energy',{d:'both',s:'medium'}],
+  ['fish and shellfish processing||input of climate change gases||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['fish and shellfish processing||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['fish and shellfish processing||other disturbance to species||disturbance of species',{d:'both',s:'medium'}],
+  ['fish surveys||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['fish surveys||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['fish surveys||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['fish surveys||input of genetically modified species and translocation of indigenous species||input or introduction of biological material',{d:'both',s:'medium'}],
+  ['fish surveys||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'medium'}],
+  ['fish surveys||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['fishery with coastal stationary gear||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['fishery with coastal stationary gear||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['fishery with coastal stationary gear||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['fishery with coastal stationary gear||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['fishery with coastal stationary gear||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['fishery with coastal stationary gear||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['fishery with coastal stationary gear||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['fishing harbours||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['fishing harbours||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['fishing harbours||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['fishing harbours||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['fishing harbours||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['fishing harbours||input of light||input of other forms of energy',{d:'both',s:'strong'}],
+  ['fishing harbours||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['fishing harbours||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'strong'}],
+  ['fishing harbours||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['fishing harbours||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['fishing harbours||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['fishing harbours||salinity changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['fishing harbours||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['flood protection||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['flood protection||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['flood protection||extraction||physical loss',{d:'direct',s:'strong'}],
+  ['flood protection||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['flood protection||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['forestry||change of habitat location, size and/or quality||disturbance of species',{d:'both',s:'weak'}],
+  ['forestry||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['forestry||input of climate change gases||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['forestry||input of organic matter||input of organic matter',{d:'indirect',s:'weak'}],
+  ['forestry||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'indirect',s:'weak'}],
+  ['fossil fuel energy production||air pollution of hazardous substances||input of hazardous substances',{d:'indirect',s:'medium'}],
+  ['fossil fuel energy production||change in water temperature||input of other forms of energy',{d:'both',s:'strong'}],
+  ['fossil fuel energy production||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['fossil fuel energy production||input of climate change gases||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['fossil fuel energy production||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'nan'}],
+  ['fossil fuel energy production||other changes to hydrological conditions||changes to hydrological conditions',{d:'both',s:'medium'}],
+  ['fossil fuel energy production||oxygen changes||changes to hydrological conditions',{d:'indirect',s:'weak'}],
+  ['fossil fuel energy production||salinity changes||changes to hydrological conditions',{d:'indirect',s:'weak'}],
+  ['fossil fuel energy production||siltation||physical disturbance',{d:'indirect',s:'medium'}],
+  ['game hunting (sea birds: eider, long tailed duck, common scoter, velvet scoter)||impulsive noise||input of sound',{d:'direct',s:'weak'}],
+  ['game hunting (sea birds: eider, long tailed duck, common scoter, velvet scoter)||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['game hunting (sea birds: eider, long tailed duck, common scoter, velvet scoter)||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['game hunting (sea birds: eider, long tailed duck, common scoter, velvet scoter)||other disturbance to species||disturbance of species',{d:'direct',s:'medium'}],
+  ['groynes||abrasion||physical disturbance',{d:'direct',s:'medium'}],
+  ['groynes||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['groynes||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['groynes||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['groynes||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['hand collecting (seaweed, macrophytes)||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['hand collecting (seaweed, macrophytes)||input of genetically modified species and translocation of indigenous species||input or introduction of biological material',{d:'both',s:'nan'}],
+  ['hand collecting (seaweed, macrophytes)||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'medium'}],
+  ['heating and cooling systems||change in water temperature||input of other forms of energy',{d:'direct',s:'medium'}],
+  ['heating and cooling systems||input of climate change gases||input of hazardous substances',{d:'indirect',s:'medium'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||extraction||physical loss',{d:'direct',s:'strong'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'medium'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||input of light||input of other forms of energy',{d:'both',s:'strong'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||input of microbial pathogens||input or introduction of biological material',{d:'both',s:'medium'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'strong'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['industrial and ferry ports (harbours, bunkering points at sea; oil terminals)||smothering||physical disturbance',{d:'direct',s:'medium'}],
+  ['industrial and ferry ports||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['industrial and ferry ports||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['industrial and ferry ports||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['industrial and ferry ports||salinity changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['industrial waste water treatment||change in water temperature||input of other forms of energy',{d:'both',s:'medium'}],
+  ['industrial waste water treatment||coastal and river input of hazardous substances||input of hazardous substances',{d:'both',s:'medium'}],
+  ['industrial waste water treatment||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['industrial waste water treatment||input of microbial pathogens||input or introduction of biological material',{d:'both',s:'strong'}],
+  ['industrial waste water treatment||input of organic matter||input of organic matter',{d:'both',s:'strong'}],
+  ['industrial waste water treatment||other changes to hydrological conditions||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['industrial waste water treatment||other disturbance to species||disturbance of species',{d:'both',s:'medium'}],
+  ['industrial waste water treatment||oxygen changes||changes to hydrological conditions',{d:'indirect',s:'weak'}],
+  ['industrial waste water treatment||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'both',s:'strong'}],
+  ['industrial waste water treatment||salinity changes||changes to hydrological conditions',{d:'indirect',s:'strong'}],
+  ['industrial waste water treatment||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['land transport infrastructure||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['land transport infrastructure||input of climate change gases||input of hazardous substances',{d:'indirect',s:'medium'}],
+  ['large-scale water deviation||change of habitat location, size and/or quality||disturbance of species',{d:'direct',s:'weak'}],
+  ['large-scale water deviation||extraction||physical loss',{d:'direct',s:'strong'}],
+  ['large-scale water deviation||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['large-scale water deviation||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['large-scale water deviation||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['leisure fishing||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['leisure fishing||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['leisure fishing||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['leisure fishing||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['leisure fishing||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['leisure fishing||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['leisure fishing||other forms of litter||input of litter',{d:'both',s:'weak'}],
+  ['machine collection (fucoids, kelp)||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['machine collection (fucoids, kelp)||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['machine collection (fucoids, kelp)||extraction||physical loss',{d:'direct',s:'weak'}],
+  ['machine collection (fucoids, kelp)||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'medium'}],
+  ['machine collection (fucoids, kelp)||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['maerl and furcellaria harvesting||abrasion||physical disturbance',{d:'direct',s:'strong'}],
+  ['maerl and furcellaria harvesting||continuous underwater noise||input of sound',{d:'direct',s:'strong'}],
+  ['maerl and furcellaria harvesting||extraction||physical loss',{d:'direct',s:'strong'}],
+  ['maerl and furcellaria harvesting||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['maerl and furcellaria harvesting||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'weak'}],
+  ['maerl and furcellaria harvesting||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['management of fish stocks and gaming||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['management of fish stocks and gaming||input of genetically modified species and translocation of indigenous species||input or introduction of biological material',{d:'both',s:'nan'}],
+  ['management of fish stocks and gaming||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['management of fish stocks and gaming||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'strong'}],
+  ['management of fish stocks and gaming||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'weak'}],
+  ['management of fish stocks and gaming||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['marinas and leisure harbours||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['marinas and leisure harbours||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['marinas and leisure harbours||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'medium'}],
+  ['marinas and leisure harbours||input of light||input of other forms of energy',{d:'both',s:'strong'}],
+  ['marinas and leisure harbours||input of microbial pathogens||input or introduction of biological material',{d:'both',s:'medium'}],
+  ['marinas and leisure harbours||input of organic matter||input of organic matter',{d:'direct',s:'weak'}],
+  ['marinas and leisure harbours||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['marinas and leisure harbours||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['marinas and leisure harbours||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['marinas and leisure harbours||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['marinas and leisure harbours||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['marinas and leisure harbours||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['marinas and leisure harbours||smothering||physical disturbance',{d:'direct',s:'strong'}],
+  ['military exercises||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['military exercises||impulsive noise||input of sound',{d:'direct',s:'strong'}],
+  ['military exercises||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['military exercises||other forms of litter||input of litter',{d:'both',s:'weak'}],
+  ['military infrastructure (e.g. military firing ranges)||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['military infrastructure (e.g. military firing ranges)||continuous underwater noise||input of sound',{d:'both',s:'weak'}],
+  ['military infrastructure (e.g. military firing ranges)||impulsive noise||input of sound',{d:'both',s:'strong'}],
+  ['military infrastructure (e.g. military firing ranges)||input of climate change gases||input of hazardous substances',{d:'indirect',s:'medium'}],
+  ['military infrastructure (e.g. military firing ranges)||input of electromagnetic and seismic waves||input of other forms of energy',{d:'both',s:'medium'}],
+  ['military infrastructure (e.g. military firing ranges)||input or spread of non-indigenous species||input or introduction of biological material',{d:'indirect',s:'medium'}],
+  ['military infrastructure (e.g. military firing ranges)||other changes to hydrological conditions||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['military infrastructure (e.g. military firing ranges)||other disturbance to species||disturbance of species',{d:'both',s:'weak'}],
+  ['military infrastructure (e.g. military firing ranges)||other forms of litter||input of litter (solid waste matter, including micro-size litter)',{d:'indirect',s:'weak'}],
+  ['military infrastructure (e.g. military firing ranges)||sealing||physical loss',{d:'direct',s:'weak'}],
+  ['military infrastructure||input of microbial pathogens||input or introduction of biological material',{d:'indirect',s:'medium'}],
+  ['mooring, anchoring, beaching, launching||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['mooring, anchoring, beaching, launching||beach litter||input of litter',{d:'both',s:'weak'}],
+  ['mooring, anchoring, beaching, launching||continuous underwater noise||input of sound',{d:'direct',s:'strong'}],
+  ['mooring, anchoring, beaching, launching||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['mooring, anchoring, beaching, launching||impulsive noise||input of sound',{d:'direct',s:'weak'}],
+  ['mooring, anchoring, beaching, launching||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['mooring, anchoring, beaching, launching||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['mooring, anchoring, beaching, launching||other disturbance to species||disturbance of species',{d:'direct',s:'medium'}],
+  ['mooring, anchoring, beaching, launching||other forms of litter||input of litter',{d:'both',s:'weak'}],
+  ['mussels and scallop dredging||abrasion||physical disturbance',{d:'direct',s:'strong'}],
+  ['mussels and scallop dredging||continuous underwater noise||input of sound',{d:'direct',s:'strong'}],
+  ['mussels and scallop dredging||extraction||physical loss',{d:'direct',s:'weak'}],
+  ['mussels and scallop dredging||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'medium'}],
+  ['mussels and scallop dredging||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['mussels and scallop dredging||input of light||input of other forms of energy',{d:'both',s:'weak'}],
+  ['mussels and scallop dredging||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['mussels and scallop dredging||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['mussels and scallop dredging||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['mussels and scallop dredging||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['mussels and scallop dredging||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['mussels and scallop dredging||siltation||physical disturbance',{d:'both',s:'strong'}],
+  ['netting||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['netting||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['netting||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['netting||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['netting||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['netting||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['netting||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['netting||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['nuclear energy production||air pollution of hazardous substances||input of hazardous substances',{d:'indirect',s:'medium'}],
+  ['nuclear energy production||change in water temperature||input of other forms of energy',{d:'both',s:'strong'}],
+  ['nuclear energy production||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['nuclear energy production||input of climate change gases||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['nuclear energy production||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'nan'}],
+  ['nuclear energy production||other changes to hydrological conditions||changes to hydrological conditions',{d:'both',s:'strong'}],
+  ['nuclear energy production||oxygen changes||changes to hydrological conditions',{d:'indirect',s:'weak'}],
+  ['nuclear energy production||salinity changes||changes to hydrological conditions',{d:'indirect',s:'weak'}],
+  ['nuclear energy production||siltation||physical disturbance',{d:'indirect',s:'medium'}],
+  ['oil and gas industry infrastructure (oil platforms)||abrasion||physical disturbance',{d:'direct',s:'strong'}],
+  ['oil and gas industry infrastructure (oil platforms)||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['oil and gas industry infrastructure (oil platforms)||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'strong'}],
+  ['oil and gas industry infrastructure (oil platforms)||impulsive noise||input of sound',{d:'direct',s:'weak'}],
+  ['oil and gas industry infrastructure (oil platforms)||input of climate change gases||input of hazardous substances',{d:'both',s:'strong'}],
+  ['oil and gas industry infrastructure (oil platforms)||input of electromagnetic and seismic waves||input of other forms of energy',{d:'direct',s:'weak'}],
+  ['oil and gas industry infrastructure (oil platforms)||input of light||input of other forms of energy',{d:'both',s:'medium'}],
+  ['oil and gas industry infrastructure (oil platforms)||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['oil and gas industry infrastructure (oil platforms)||non-intentional extraction or injury to species (including bycatch)||disturbance of species',{d:'direct',s:'medium'}],
+  ['oil and gas industry infrastructure (oil platforms)||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['oil and gas industry infrastructure (oil platforms)||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['oil and gas industry infrastructure (oil platforms)||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['oil and gas industry infrastructure (oil platforms)||salinity changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['oil and gas industry infrastructure (oil platforms)||sealing||physical loss',{d:'direct',s:'weak'}],
+  ['oil and gas refineries; industrial plants||beach litter||input of litter (solid waste matter, including micro-size litter)',{d:'indirect',s:'weak'}],
+  ['oil and gas refineries; industrial plants||change in water temperature||input of other forms of energy',{d:'both',s:'medium'}],
+  ['oil and gas refineries; industrial plants||coastal and river input of hazardous substances||input of hazardous substances',{d:'both',s:'strong'}],
+  ['oil and gas refineries; industrial plants||input of climate change gases||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['oil and gas refineries; industrial plants||input of light||input of other forms of energy',{d:'both',s:'medium'}],
+  ['oil and gas refineries; industrial plants||input of microbial pathogens||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['oil and gas refineries; industrial plants||input of organic matter||input of organic matter',{d:'indirect',s:'weak'}],
+  ['oil and gas refineries; industrial plants||other changes to hydrological conditions||changes to hydrological conditions',{d:'indirect',s:'strong'}],
+  ['oil and gas refineries; industrial plants||other forms of litter||input of litter (solid waste matter, including micro-size litter)',{d:'indirect',s:'weak'}],
+  ['oil and gas refineries; industrial plants||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['oil and gas refineries; industrial plants||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'both',s:'medium'}],
+  ['oil and gas refineries; industrial plants||salinity changes||changes to hydrological conditions',{d:'both',s:'medium'}],
+  ['oil and gas refineries; industrial plants||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['operational windfarms||input of electromagnetic and seismic waves||input of other forms of energy',{d:'direct',s:'weak'}],
+  ['other renewable energy production (pumped-storage hydroelectricity)||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||abrasion||physical disturbance',{d:'direct',s:'strong'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||air pollution of hazardous substances||input of hazardous substances',{d:'both',s:'strong'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||beach litter||input of litter',{d:'both',s:'strong'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||continuous underwater noise||input of sound',{d:'direct',s:'strong'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'strong'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||input of climate change gases||input of hazardous substances',{d:'both',s:'strong'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||input of microbial pathogens||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'strong'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||non-intentional extraction or injury to species (including bycatch)||disturbance of species',{d:'direct',s:'medium'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||other disturbance to species||disturbance of species',{d:'direct',s:'medium'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||other forms of litter||input of litter',{d:'both',s:'strong'}],
+  ['passage of ships/boats (passenger shipping; shipping density)||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['passage of ships||input of light||input of other forms of energy',{d:'both',s:'weak'}],
+  ['pelagic long lining||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['pelagic long lining||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['pelagic long lining||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['pelagic long lining||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['pelagic long lining||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['pelagic long lining||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['pelagic long lining||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['pelagic seining||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['pelagic seining||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['pelagic seining||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['pelagic seining||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['pelagic seining||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['pelagic seining||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['pelagic seining||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['pelagic trawling||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['pelagic trawling||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['pelagic trawling||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'medium'}],
+  ['pelagic trawling||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['pelagic trawling||input of light||input of other forms of energy',{d:'both',s:'weak'}],
+  ['pelagic trawling||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['pelagic trawling||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['pelagic trawling||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['pelagic trawling||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['pelagic trawling||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['permanent land claim (urban, industrial, leisure, agriculture purposes)||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['permanent land claim (urban, industrial, leisure, agriculture purposes)||impulsive noise||input of sound',{d:'direct',s:'strong'}],
+  ['permanent land claim (urban, industrial, leisure, agriculture purposes)||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['permanent land claim (urban, industrial, leisure, agriculture purposes)||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['permanent land claim (urban, industrial, leisure, agriculture purposes)||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['permanent land claim (urban, industrial, leisure, agriculture purposes)||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['permanent land claim (urban, industrial, leisure, agriculture purposes)||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['piers||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['piers||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['piers||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['piers||sealing||physical loss',{d:'direct',s:'weak'}],
+  ['piers||siltation||physical disturbance',{d:'both',s:'weak'}],
+  ['pipeline placement and operation (pipelines)||abrasion||physical disturbance',{d:'direct',s:'strong'}],
+  ['pipeline placement and operation (pipelines)||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['pipeline placement and operation (pipelines)||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['pipeline placement and operation (pipelines)||impulsive noise||input of sound',{d:'direct',s:'weak'}],
+  ['pipeline placement and operation (pipelines)||input of climate change gases||input of hazardous substances',{d:'both',s:'strong'}],
+  ['pipeline placement and operation (pipelines)||input of electromagnetic and seismic waves||input of other forms of energy',{d:'direct',s:'weak'}],
+  ['pipeline placement and operation (pipelines)||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['pipeline placement and operation (pipelines)||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'medium'}],
+  ['pipeline placement and operation (pipelines)||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['pipeline placement and operation (pipelines)||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['potting/ creeling||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['potting/ creeling||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['potting/ creeling||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['potting/ creeling||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['potting/ creeling||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'strong'}],
+  ['potting/ creeling||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['potting/ creeling||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['predator control||impulsive noise||input of sound',{d:'direct',s:'weak'}],
+  ['predator control||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['predator control||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'nan'}],
+  ['predator control||other disturbance to species||disturbance of species',{d:'direct',s:'medium'}],
+  ['rail transport||air pollution of hazardous substances||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['rail transport||input of climate change gases||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['recreational boating, yachting||air pollution of hazardous substances||input of hazardous substances',{d:'both',s:'weak'}],
+  ['recreational boating, yachting||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['recreational boating, yachting||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['recreational boating, yachting||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['recreational boating, yachting||input of light||input of other forms of energy',{d:'both',s:'weak'}],
+  ['recreational boating, yachting||input of microbial pathogens||input or introduction of biological material',{d:'both',s:'medium'}],
+  ['recreational boating, yachting||input of organic matter||input of organic matter',{d:'direct',s:'weak'}],
+  ['recreational boating, yachting||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'medium'}],
+  ['recreational boating, yachting||non-intentional extraction or injury to species (including bycatch)||disturbance of species',{d:'direct',s:'medium'}],
+  ['recreational boating, yachting||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['recreational boating, yachting||other disturbance to species||disturbance of species',{d:'direct',s:'medium'}],
+  ['recreational boating, yachting||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['recreational boating, yachting||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['recreational boating, yachting||smothering||physical disturbance',{d:'direct',s:'weak'}],
+  ['reed harvesting||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['reed harvesting||extraction||physical loss',{d:'direct',s:'weak'}],
+  ['reed harvesting||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['reed harvesting||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['reed harvesting||intentional extraction or injury to species||extraction or injury to species',{d:'direct',s:'weak'}],
+  ['reed harvesting||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'nan'}],
+  ['reed harvesting||smothering||physical disturbance',{d:'direct',s:'weak'}],
+  ['road transport||air pollution of hazardous substances||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['road transport||input of climate change gases||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['sea walls||abrasion||physical disturbance',{d:'direct',s:'medium'}],
+  ['sea walls||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['sea walls||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['sea walls||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['sea walls||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['seismic/geotechnical surveys||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['seismic/geotechnical surveys||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['seismic/geotechnical surveys||impulsive noise||input of sound',{d:'direct',s:'strong'}],
+  ['seismic/geotechnical surveys||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['seismic/geotechnical surveys||input of electromagnetic and seismic waves||input of other forms of energy',{d:'direct',s:'weak'}],
+  ['seismic/geotechnical surveys||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['shellfish mariculture||coastal and marine point source input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['shellfish mariculture||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['shellfish mariculture||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['shellfish mariculture||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['shellfish mariculture||input of genetically modified species and translocation of indigenous species||input or introduction of biological material',{d:'both',s:'strong'}],
+  ['shellfish mariculture||input of light||input of other forms of energy',{d:'both',s:'medium'}],
+  ['shellfish mariculture||input of microbial pathogens||input or introduction of biological material',{d:'both',s:'strong'}],
+  ['shellfish mariculture||input of organic matter||input of organic matter',{d:'both',s:'strong'}],
+  ['shellfish mariculture||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['shellfish mariculture||non-intentional extraction or injury to species (including bycatch)||extraction or injury to species',{d:'direct',s:'weak'}],
+  ['shellfish mariculture||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['shellfish mariculture||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['shellfish mariculture||other forms of litter||input of litter',{d:'both',s:'weak'}],
+  ['shellfish mariculture||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['shellfish mariculture||sealing||physical loss',{d:'direct',s:'weak'}],
+  ['shellfish mariculture||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['ship/boat-building facilities||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['ship/boat-building facilities||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['ship/boat-building facilities||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['ship/boat-building facilities||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['ship/boat-building facilities||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['ship/boat-building facilities||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['ship/boat-building facilities||siltation||physical disturbance',{d:'both',s:'weak'}],
+  ['slipways||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['slipways||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['slipways||sealing||physical loss',{d:'direct',s:'weak'}],
+  ['slipways||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['solid waste disposal (e.g. landfills)||beach litter||input of litter',{d:'both',s:'weak'}],
+  ['solid waste disposal (e.g. landfills)||coastal and river input of hazardous substances||input of hazardous substances',{d:'both',s:'strong'}],
+  ['solid waste disposal (e.g. landfills)||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['solid waste disposal (e.g. landfills)||input of organic matter||input of organic matter',{d:'both',s:'weak'}],
+  ['solid waste disposal (e.g. landfills)||other forms of litter||input of litter',{d:'both',s:'weak'}],
+  ['solid waste disposal (e.g. landfills)||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'both',s:'weak'}],
+  ['tidal barrages||abrasion||physical disturbance',{d:'direct',s:'strong'}],
+  ['tidal barrages||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['tidal barrages||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['tidal barrages||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['transport - air||air pollution of hazardous substances||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['transport - air||input of climate change gases||input of hazardous substances',{d:'indirect',s:'strong'}],
+  ['tunnels||extraction||physical loss',{d:'direct',s:'strong'}],
+  ['tunnels||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['tunnels||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['underwater cultural heritage||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['underwater cultural heritage||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['underwater cultural heritage||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['underwater cultural heritage||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['underwater cultural heritage||other disturbance to species||disturbance of species',{d:'direct',s:'medium'}],
+  ['underwater cultural heritage||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['urban land use (incl. storm water runoff)||beach litter||input of litter (solid waste matter, including micro-size litter)',{d:'indirect',s:'weak'}],
+  ['urban land use (incl. storm water runoff)||coastal and river input of hazardous substances||input of hazardous substances',{d:'indirect',s:'weak'}],
+  ['urban land use (incl. storm water runoff)||input of climate change gases||input of hazardous substances',{d:'indirect',s:'medium'}],
+  ['urban land use (incl. storm water runoff)||input of microbial pathogens||input or introduction of biological material',{d:'indirect',s:'medium'}],
+  ['urban land use (incl. storm water runoff)||input of organic matter||input of organic matter',{d:'indirect',s:'weak'}],
+  ['urban land use (incl. storm water runoff)||other disturbance to species||disturbance of species',{d:'both',s:'weak'}],
+  ['urban land use (incl. storm water runoff)||other forms of litter||input of litter (solid waste matter, including micro-size litter)',{d:'indirect',s:'weak'}],
+  ['urban land use (incl. storm water runoff)||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'indirect',s:'medium'}],
+  ['urban land use||input of light||input of other forms of energy',{d:'both',s:'strong'}],
+  ['urban waste water treatment||change in water temperature||input of other forms of energy',{d:'both',s:'medium'}],
+  ['urban waste water treatment||coastal and river input of hazardous substances||input of hazardous substances',{d:'both',s:'medium'}],
+  ['urban waste water treatment||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['urban waste water treatment||input of microbial pathogens||input or introduction of biological material',{d:'both',s:'strong'}],
+  ['urban waste water treatment||input of organic matter||input of organic matter',{d:'both',s:'strong'}],
+  ['urban waste water treatment||other changes to hydrological conditions||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['urban waste water treatment||other disturbance to species||disturbance of species',{d:'both',s:'medium'}],
+  ['urban waste water treatment||oxygen changes||changes to hydrological conditions',{d:'indirect',s:'weak'}],
+  ['urban waste water treatment||riverine and coastal diffuse input of nutrients||input of nutrients',{d:'both',s:'strong'}],
+  ['urban waste water treatment||salinity changes||changes to hydrological conditions',{d:'indirect',s:'strong'}],
+  ['urban waste water treatment||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['waste disposal (munitions)||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['waste disposal (munitions)||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['waste disposal (munitions)||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['waste disposal (munitions)||impulsive noise||input of sound',{d:'direct',s:'strong'}],
+  ['waste disposal (munitions)||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['waste disposal (munitions)||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['waste disposal (munitions)||other disturbance to species||disturbance of species',{d:'direct',s:'weak'}],
+  ['waste disposal (munitions)||other forms of litter||input of litter',{d:'both',s:'weak'}],
+  ['waste disposal (munitions)||sealing||physical loss',{d:'direct',s:'weak'}],
+  ['waste disposal (munitions)||smothering||physical disturbance',{d:'direct',s:'weak'}],
+  ['water sports (surface)||beach litter||input of litter',{d:'both',s:'medium'}],
+  ['water sports (surface)||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['water sports (surface)||input of climate change gases||input of hazardous substances',{d:'both',s:'medium'}],
+  ['water sports (surface)||input of light||input of other forms of energy',{d:'both',s:'weak'}],
+  ['water sports (surface)||input of organic matter||input of organic matter',{d:'indirect',s:'weak'}],
+  ['water sports (surface)||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['water sports (surface)||other disturbance to species||disturbance of species',{d:'direct',s:'medium'}],
+  ['water sports (surface)||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['water sports (surface)||siltation||physical disturbance',{d:'both',s:'weak'}],
+  ['wave energy production||continuous underwater noise||input of sound',{d:'direct',s:'weak'}],
+  ['wave energy production||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['wave energy production||impulsive noise||input of sound',{d:'direct',s:'weak'}],
+  ['wave energy production||input of electromagnetic and seismic waves||input of other forms of energy',{d:'direct',s:'weak'}],
+  ['wave energy production||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['wave energy production||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'strong'}],
+  ['wave energy production||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['wave energy production||oxygen changes||changes to hydrological conditions',{d:'both',s:'weak'}],
+  ['wave energy production||sealing||physical loss',{d:'direct',s:'weak'}],
+  ['wave energy production||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['wildlife watching||abrasion||physical disturbance',{d:'direct',s:'weak'}],
+  ['wildlife watching||beach litter||input of litter',{d:'both',s:'medium'}],
+  ['wildlife watching||continuous underwater noise||input of sound',{d:'direct',s:'medium'}],
+  ['wildlife watching||other disturbance to species||disturbance of species',{d:'direct',s:'medium'}],
+  ['wildlife watching||other forms of litter||input of litter',{d:'both',s:'medium'}],
+  ['wind energy production: operational wind farms||continuous underwater noise||input of sound',{d:'direct',s:'strong'}],
+  ['wind energy production: operational wind farms||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['wind energy production: operational wind farms||input of light||input of other forms of energy',{d:'both',s:'medium'}],
+  ['wind energy production: operational wind farms||input or spread of non-indigenous species||input or introduction of biological material',{d:'both',s:'weak'}],
+  ['wind energy production: operational wind farms||non-intentional extraction or injury to species (including bycatch)||disturbance of species',{d:'direct',s:'strong'}],
+  ['wind energy production: operational wind farms||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'medium'}],
+  ['wind energy production: operational wind farms||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['wind energy production: operational wind farms||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['wind energy production: operational wind farms||siltation||physical disturbance',{d:'both',s:'medium'}],
+  ['wind energy production: wind farms under construction||hazardous substances input at sea||input of hazardous substances',{d:'both',s:'weak'}],
+  ['wind energy production: wind farms under construction||impulsive noise||input of sound',{d:'direct',s:'strong'}],
+  ['wind energy production: wind farms under construction||input of climate change gases||input of hazardous substances',{d:'both',s:'weak'}],
+  ['wind energy production: wind farms under construction||input of light||input of other forms of energy',{d:'both',s:'medium'}],
+  ['wind energy production: wind farms under construction||other changes to hydrological conditions||changes to hydrological conditions',{d:'direct',s:'weak'}],
+  ['wind energy production: wind farms under construction||other disturbance to species||disturbance of species',{d:'direct',s:'strong'}],
+  ['wind energy production: wind farms under construction||sealing||physical loss',{d:'direct',s:'strong'}],
+  ['wind energy production: wind farms under construction||smothering||physical disturbance',{d:'direct',s:'strong'}],
+]);
+  // Fallback lookup when the diagram's pressure Level-2 label differs from the dataset's Level-2 label.
+  // Keyed by: act3||pres3 (canonicalized). If multiple rows exist, we keep the "strongest" one.
+  const LINK_ATTR_BY_A3P3 = (() => {
+    const out = new Map();
+    const strengthRank = { 'strong':3, 'medium':2, 'weak':1, 'na':0, '':-1 };
+    const directRank = { 'both':3, 'direct':2, 'indirect':1, '':-1 };
+
+    for (const [k, v] of LINK_ATTR.entries()){
+      const parts = k.split('||');
+      if (parts.length < 3) continue;
+      const a3 = parts[0], p3 = parts[1];
+      const key2 = `${a3}||${p3}`;
+      const cur = out.get(key2);
+      if (!cur){
+        out.set(key2, v);
+        continue;
+      }
+      const cs = strengthRank[(cur.s||'').toLowerCase()] ?? -1;
+      const ns = strengthRank[(v.s||'').toLowerCase()] ?? -1;
+      const cd = directRank[(cur.d||'').toLowerCase()] ?? -1;
+      const nd = directRank[(v.d||'').toLowerCase()] ?? -1;
+
+      // Prefer higher strength; tie-breaker by directness
+      if (ns > cs || (ns === cs && nd > cd)){
+        out.set(key2, v);
+      }
+    }
+    return out;
+  })();
+
+
+
+
+
+  const L2_TO_L1_CANON = (() => {
+    const m = new Map();
+    for (const [l1, arr] of Object.entries(L1_TO_L2_CANON)) {
+      for (const l2 of arr) m.set(canonKey(l2), l1);
+    }
+    return m;
+  })();
+
+  const P2_TO_PL1_CANON = (() => {
+    const m = new Map();
+    for (const [pl1, arr] of Object.entries(PL1_TO_P2_CANON)) {
+      for (const p2 of arr) m.set(canonKey(p2), pl1);
+    }
+    return m;
+  })();
+
+
+  
+const renderDetails = () => {
+  const selActs = Array.from(selectedActivities || []);
+  const selPres = Array.from(selectedPressures  || []);
+
+  const actLabel = selActs.length === 0 ? 'None' : selActs.join(', ');
+  const prLabel  = selPres.length === 0 ? 'None' : selPres.join(', ');
+
+  if (elActName) elActName.textContent = actLabel;
+  if (elPrName)  elPrName.textContent  = prLabel;
+
+  const esc = (s) => (s ?? '').toString()
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+
+// --- Colour helpers for activity pills (robust across browsers; no color-mix) ---
+function _parseColorToRGB(col){
+  if (!col) return null;
+  col = col.toString().trim();
+  // Hex
+  const hex = col.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex){
+    let h = hex[1];
+    if (h.length === 3) h = h.split('').map(ch => ch+ch).join('');
+    const n = parseInt(h, 16);
+    return {r:(n>>16)&255, g:(n>>8)&255, b:n&255};
+  }
+  // rgb/rgba
+  const rgb = col.match(/rgba?\(([^)]+)\)/i);
+  if (rgb){
+    const parts = rgb[1].split(',').map(x=>parseFloat(x.trim()));
+    if (parts.length >= 3) return {r:parts[0], g:parts[1], b:parts[2]};
+  }
+  return null;
+}
+function _pillStyleFromColor(col){
+  if (!col) return '';
+  col = col.toString().trim();
+  const rgb = _parseColorToRGB(col);
+  // Default to dark text; switch to white for dark backgrounds
+  let fg = '#111';
+  if (rgb){
+    const lum = (0.2126*rgb.r + 0.7152*rgb.g + 0.0722*rgb.b) / 255;
+    if (lum < 0.45) fg = '#fff';
+  }
+  // Use SOLID background so the colour is unmistakable across browsers
+  return `background:${col};border-color:${col};color:${fg};`;
+}
+
+  const uniqSorted = (arr) => Array.from(new Set(arr.filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+
+  const dirSym = (d) => (d === 'direct') ? '➜' : (d === 'indirect') ? '↝' : (d === 'both') ? '⇄' : '?';
+
+  const normStrength = (s) => {
+    const v = (s ?? '').toString().trim().toLowerCase();
+    if (!v || v === 'n/a' || v === 'na' || v === 'null' || v === 'undefined') return 'na';
+    if (v === 'weak' || v === 'medium' || v === 'strong') return v;
+    if (v === 'med') return 'medium';
+    return v;
+  };
+
+  const strengthStyle = (sval) => {
+    // Stronger, unmistakable fills (still reasonably soft)
+    switch (sval){
+      case 'weak':   return 'background:#f7d7d5;border-color:#d93025;color:#111;';
+      case 'medium': return 'background:#fbe7c6;border-color:#f29900;color:#111;';
+      case 'strong': return 'background:#d9f2e3;border-color:#188038;color:#111;';
+      case 'na':     return 'background:#e6e7e9;border-color:#5f6368;color:#111;';
+      default:       return '';
+    }
+  };
+
+  const chipHTML = ({ label, d, s }) => {
+    const dcls = (d === 'direct' || d === 'indirect' || d === 'both') ? d : '';
+    const sval = normStrength(s);
+    const scls = (sval === 'weak' || sval === 'medium' || sval === 'strong' || sval === 'na') ? `str-${sval}` : '';
+    const inline = strengthStyle(sval) || 'background:#eef0f2;border-color:rgba(60,64,67,.35);color:#111;';
+    const title = `${label} • ${d || 'unknown'} • ${s || 'unknown'}`;
+    return `<span class="chip ${dcls} ${scls}" style="${inline}" title="${esc(title)}"><span class="lbl">${esc(label)}</span><span class="sym">${dirSym(d)}</span></span>`;
+  };
+
+  // -------- ACTIVITY side (Level 2 selection grouped under Level 1) --------
+  const actGroups = new Map(); // l1 -> l2[]
+  for (const a2 of selActs) {
+    const l1 = L2_TO_L1_CANON.get(canonKey(a2)) || 'Other';
+    if (!actGroups.has(l1)) actGroups.set(l1, []);
+    actGroups.get(l1).push(a2);
+  }
+
+  const actHtml = [];
+  for (const [l1, l2ItemsRaw] of Array.from(actGroups.entries()).sort((a,b)=>a[0].localeCompare(b[0]))) {
+    const l2Items = uniqSorted(l2ItemsRaw);
+
+    const groupsHtml = l2Items.map(act2 => {
+      // Build act3 -> chips (only if both activity & pressure are selected)
+      const byPres = L3_BY_L2[act2] || {};
+      const act3ToChips = new Map();
+
+      if (selPres.length) {
+        for (const pres2 of selPres) {
+          const arr = byPres[pres2] || [];
+          for (const link of arr) {
+            const act3 = link.act3;
+            const pres3 = link.pres3;
+            const key = `${canonKey(act3)}||${canonKey(pres3)}||${canonKey(pres2)}`;
+            const meta = LINK_ATTR.get(key) || LINK_ATTR_BY_A3P3.get(`${canonKey(act3)}||${canonKey(pres3)}`) || { d:'', s:'' };
+            if (!act3ToChips.has(act3)) act3ToChips.set(act3, []);
+            if (isDirEnabled(meta.d) && isStrEnabled(meta.s)) act3ToChips.get(act3).push({ label: `${pres2}: ${pres3}`, d: meta.d, s: meta.s });
+          }
+        }
       } else {
-        if (elActDetails) elActDetails.textContent = NO_DATA;
-        if (elPrDetails)  elPrDetails.textContent  = NO_DATA;
+        // If no pressures selected, show all act3 (no chips)
+        for (const arr of Object.values(byPres)) {
+          for (const link of arr) {
+            if (!act3ToChips.has(link.act3)) act3ToChips.set(link.act3, []);
+          }
+        }
       }
-      return;
-    }
 
-    if (selectedActivity) {
-      const byPres = L3_BY_L2[selectedActivity] || {};
-      const uniq = Array.from(new Set(Object.values(byPres).flat().map(p=>p.act3))).sort();
-      if (elActDetails) elActDetails.textContent = uniq.length ? uniq.join('\n') : NO_DATA;
-      if (elPrDetails)  elPrDetails.textContent  = '';
-      return;
-    }
+      const act3List = uniqSorted(Array.from(act3ToChips.keys()));
+      const lis = act3List.length
+        ? act3List.map(a3 => {
+            const chips = (selPres.length)
+              ? uniqSorted((act3ToChips.get(a3) || []).map(x => JSON.stringify(x))).map(x => JSON.parse(x))
+              : [];
+            const chipsHtml = (selPres.length && chips.length)
+              ? `<span class="chipset">${chips.map(chipHTML).join('')}</span>`
+              : '';
+            const col = act2Color(act2);
+            const pill = col ? `<span class="a3pill" style="${_pillStyleFromColor(col)}">${esc(a3)}</span>` : `<span class="a3pill">${esc(a3)}</span>`;
+            return `<li>${pill}${chipsHtml}</li>`;
+          }).join('')
+        : `<li class="muted">(No Level 3 items)</li>`;
 
-    if (selectedPressure) {
-      const presList = [];
-      for (const act of Object.keys(L3_BY_L2)) {
-        const arr = (L3_BY_L2[act] && L3_BY_L2[act][selectedPressure]) ? L3_BY_L2[act][selectedPressure] : [];
-        for (const p of arr) presList.push(p.pres3);
+      return `<div class="group">
+        <div class="group-title">${esc(act2)}:</div>
+        <ul>${lis}</ul>
+      </div>`;
+    }).join('');
+
+    const l1Line = l1 ? `<div class="lvl"><span class="lvl-k">Level 1:</span> ${esc(l1)}</div>` : '';
+    const l2Line = l2Items.length
+      ? `<div class="lvl"><span class="lvl-k">Level 2:</span> ${esc(l2Items.join(', '))}</div>`
+      : `<div class="lvl muted">(No Level 2 selection)</div>`;
+
+    const l3Head = l2Items.length ? `<div class="lvl"><span class="lvl-k">Level 3:</span></div>` : '';
+    actHtml.push(`${l1Line}${l2Line}${l3Head}${groupsHtml}`);
+  }
+
+  // -------- PRESSURE side (Level 2 selection grouped under Level 1) --------
+  const presGroups = new Map(); // pl1 -> p2[]
+  for (const p2 of selPres) {
+    const pl1 = P2_TO_PL1_CANON.get(canonKey(p2)) || 'Other';
+    if (!presGroups.has(pl1)) presGroups.set(pl1, []);
+    presGroups.get(pl1).push(p2);
+  }
+
+  const presHtml = [];
+  for (const [pl1, p2ItemsRaw] of Array.from(presGroups.entries()).sort((a,b)=>a[0].localeCompare(b[0]))) {
+    const p2Items = uniqSorted(p2ItemsRaw);
+
+    const groupsHtml = p2Items.map(pres2 => {
+      // Build pres3 -> chips of act3 (only when both selected)
+      const pres3ToChips = new Map();
+
+      if (selActs.length) {
+        for (const act2 of selActs) {
+          const arr = (L3_BY_L2[act2] && L3_BY_L2[act2][pres2]) ? L3_BY_L2[act2][pres2] : [];
+          for (const link of arr) {
+            const pres3 = link.pres3;
+            const act3  = link.act3;
+            const key = `${canonKey(act3)}||${canonKey(pres3)}||${canonKey(pres2)}`;
+            const meta = LINK_ATTR.get(key) || LINK_ATTR_BY_A3P3.get(`${canonKey(act3)}||${canonKey(pres3)}`) || { d:'', s:'' };
+            if (!pres3ToChips.has(pres3)) pres3ToChips.set(pres3, []);
+            pres3ToChips.get(pres3).push({ label: act3, d: meta.d, s: meta.s });
+          }
+        }
+      } else {
+        // If no activities selected, show all pres3 (no chips)
+        for (const act2 of Object.keys(L3_BY_L2 || {})) {
+          const arr = (L3_BY_L2[act2] && L3_BY_L2[act2][pres2]) ? L3_BY_L2[act2][pres2] : [];
+          for (const link of arr) {
+            if (!pres3ToChips.has(link.pres3)) pres3ToChips.set(link.pres3, []);
+          }
+        }
       }
-      const uniq = Array.from(new Set(presList)).sort();
-      if (elPrDetails)  elPrDetails.textContent  = uniq.length ? uniq.join('\n') : NO_DATA;
-      if (elActDetails) elActDetails.textContent = '';
-      return;
-    }
 
-    if (elActDetails) elActDetails.textContent = '';
-    if (elPrDetails)  elPrDetails.textContent  = '';
-  };
+      const pres3List = uniqSorted(Array.from(pres3ToChips.keys()));
+      const lis = pres3List.length
+        ? pres3List.map(p3 => {
+            const chips = (selActs.length)
+              ? uniqSorted((pres3ToChips.get(p3) || []).map(x => JSON.stringify(x))).map(x => JSON.parse(x))
+              : [];
+            const chipsHtml = (selActs.length && chips.length)
+              ? `<span class="chipset">${chips.map(chipHTML).join('')}</span>`
+              : '';
+            return `<li>${esc(p3)}${chipsHtml}</li>`;
+          }).join('')
+        : `<li class="muted">(No Level 3 items)</li>`;
 
-  const applyFilter = () => {
-    let shown = 0;
-    linkPaths.forEach(p => {
-      const a = p.getAttribute('data-activity');
-      const pr = p.getAttribute('data-pressure');
+      return `<div class="group">
+        <div class="group-title">${esc(pres2)}:</div>
+        <ul>${lis}</ul>
+      </div>`;
+    }).join('');
 
-      const okA = !selectedActivity || a === selectedActivity;
-      const okP = !selectedPressure || pr === selectedPressure;
+    const l1Line = pl1 ? `<div class="lvl"><span class="lvl-k">Level 1:</span> ${esc(pl1)}</div>` : '';
+    const l2Line = p2Items.length
+      ? `<div class="lvl"><span class="lvl-k">Level 2:</span> ${esc(p2Items.join(', '))}</div>`
+      : `<div class="lvl muted">(No Level 2 selection)</div>`;
 
-      const on = okA && okP && (selectedActivity || selectedPressure);
-      p.classList.toggle('on', on);
-      if (on) shown++;
-    });
+    const l3Head = p2Items.length ? `<div class="lvl"><span class="lvl-k">Level 3:</span></div>` : '';
+    presHtml.push(`${l1Line}${l2Line}${l3Head}${groupsHtml}`);
+  }
 
-    const label = (selectedActivity && selectedPressure)
-      ? `Showing: ${selectedActivity} → ${selectedPressure} (${shown} links)`
-      : (selectedActivity ? `Showing lines for: ${selectedActivity} (${shown} links)`
-        : (selectedPressure ? `Showing lines for: ${selectedPressure} (${shown} links)`
-          : 'Click an activity label to show only its lines.'));
+  if (elActDetails) elActDetails.innerHTML = actHtml.join('<hr class="sep">');
+  if (elPrDetails)  elPrDetails.innerHTML  = presHtml.join('<hr class="sep">');
+};
 
-    if (status) status.textContent = label;
-    renderDetails();
-  };
 
+
+const updateSelectionStyles = () => {
+  // Level-2 label hitboxes (left activities & right pressures)
+  svg.querySelectorAll('#activityHitLayer rect[data-activity]').forEach(r => {
+    const id = r.getAttribute('data-activity');
+    r.classList.toggle('selected', selectedActivities.has(id));
+  });
+  svg.querySelectorAll('#pressureHitLayer rect[data-pressure]').forEach(r => {
+    const id = r.getAttribute('data-pressure');
+    r.classList.toggle('selected', selectedPressures.has(id));
+  });
+};
+
+const applyFilter = () => {
+  let shown = 0;
+
+  const hasA = selectedActivities && selectedActivities.size > 0;
+  const hasP = selectedPressures  && selectedPressures.size > 0;
+
+  linkPaths.forEach(p => {
+    const a  = p.getAttribute('data-activity');
+    const pr = p.getAttribute('data-pressure');
+
+    const okA = (!hasA) || selectedActivities.has(a);
+    const okP = (!hasP) || selectedPressures.has(pr);
+
+    const anySel = hasA || hasP;
+    const on = okA && okP && anySel;
+
+    p.classList.toggle('on', on);
+    if (on) shown++;
+  });
+
+  const label = (() => {
+    const actLab = hasA ? (selectedActivities.size === 1 ? Array.from(selectedActivities)[0] : `${selectedActivities.size} activities`) : null;
+    const prLab  = hasP ? (selectedPressures.size === 1 ? Array.from(selectedPressures)[0] : `${selectedPressures.size} pressures`) : null;
+
+    if (hasA && hasP) return `Showing: ${actLab} → ${prLab} (${shown} links)`;
+    if (hasA) return `Showing lines for: ${actLab} (${shown} links)`;
+    if (hasP) return `Showing lines for: ${prLab} (${shown} links)`;
+    return 'Click an activity or pressure label to show its lines.';
+  })();
+
+  if (status) status.textContent = label;
+  updateSelectionStyles();
+  renderDetails();
+};
   const reset = () => {
-    selectedActivity = null;
-    selectedPressure = null;
-    linkPaths.forEach(p => p.classList.remove('on'));
-    if (status) status.textContent = 'Click an activity label to show only its lines.';
-    renderDetails();
-  };
+  manualActivities = new Set();
+  manualPressures  = new Set();
+  activeL1s        = new Set();
+  activePL1s       = new Set();
+  selectedActivities = new Set();
+  selectedPressures  = new Set();
 
+  // clear L1 active styling (activities + pressures)
+  svg.querySelectorAll('[data-l1].active,[data-pl1].active').forEach(el=>el.classList.remove('active'));
+
+  linkPaths.forEach(p => p.classList.remove('on'));
+  if (status) status.textContent = 'Click an activity or pressure label to show its lines.';
+  updateSelectionStyles();
+  renderDetails();
+};
   // Expose reset so "Show all" can clear state safely
   window.__matrixReset = reset;
 
@@ -2028,30 +3112,336 @@ const inferPressure = (raw) => {
     return null;
   };
 
-  svg.addEventListener('pointerup', (e) => {
+  
+  // --- Level-1 click support (multi-select activities) ---
+  const normalizeLabel = (s) => (s || '').replace(/\s+/g,' ').trim().toUpperCase();
+
+  const L1_TO_L2 = {
+    "CULTIVATION OF LIVING RESOURCES": ["Aquaculture","Agriculture","Forestry"],
+    "PRODUCTION OF ENERGY": ["Renewable energy generation","Non-renewable energy generation","Transmission of electricity and communications"],
+    "EXTRACTION OF LIVING RESOURCES": ["Fish and shellfish harvesting (professional, recreational)","Fish and shellfish processing","Management of fish stocks and gaming","Hunting and collecting for other purposes","Marine plant harvesting"],
+    "EXTRACTION OF NON-LIVING RESOURCES": ["Extraction of minerals","Extraction of oil and gas","Abstraction of water"],
+    "PHYSICAL RESTRUCTURING OF COASTLINE OR SEABED": ["Land claim","Restructuring of seabed morphology","Canalisation and other watercourse modifications","Coastal defence and flood protection","Offshore structures (other than for energy production/extraction)"],
+    "TRANSPORT": ["Shipping","Air","Land","Transport infrastructure"],
+    "URBAN & INDUSTRIAL USES": ["Urban uses","Industrial uses","Waste treatment and disposal"],
+    "TOURISM & LEISURE": ["Tourism and leisure infrastructure","Tourism and leisure activities"],
+    "SECURITY & DEFENCE": ["Military operations"],
+    "EDUCATION & RESEARCH": ["Research and survey"],
+    "ACTIVITIES & SOURCES OUTSIDE THE BALTIC SEA REGION": ["Activities and sources outside the Baltic Sea region"]
+  };
+
+  // Mark Level-1 SVG text as clickable (robust matching: ignore spaces/punctuation)
+const L1_KEYS = Object.keys(L1_TO_L2);
+const l1Sig = (s) => (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g,''); // remove spaces, & etc.
+const L1_BY_SIG = new Map(L1_KEYS.map(k => [l1Sig(k), k]));
+
+const allTextEls = Array.from(svg.querySelectorAll('text, tspan'));
+  // --- Activity Level-2 colour lookup (for coherent pills/chips) ---
+  const _act2ColorCache = new Map();
+  const _sig = (s) => {
+    const t = (s || '').toString().toUpperCase();
+    // Treat '&' and the word 'AND' equivalently so labels match between SVG and dataset
+    const norm = t.replace(/&/g,' AND ').replace(/\bAND\b/g,' ');
+    return norm.replace(/[^A-Z0-9]/g,'');
+  };
+  
+function act2Color(act2){
+  if (!act2) return '';
+  if (_act2ColorCache.has(act2)) return _act2ColorCache.get(act2) || '';
+
+  const sig = _sig(act2);
+
+  // Use the already-parsed clickable label rects (robust across paths/rects and avoids background panels)
+  const a = activities.find(x => x && x.label && _sig(x.label) === sig) || null;
+
+  // If we can't find the Level 2 activity label in the diagram, fall back to empty.
+  if (!a || !a.rect){
+    _act2ColorCache.set(act2, '');
+    return '';
+  }
+
+  // Anchor: the hit-rect area around the Level 2 label (approx. where the coloured box sits)
+  const padX = (typeof PAD_X === 'number') ? PAD_X : 10;
+  const padY = (typeof PAD_Y === 'number') ? PAD_Y : 4;
+
+  const ax1 = (a.rect.x - padX);
+  const ay1 = (a.rect.y - padY);
+  const aw  = (a.rect.w + padX*2);
+  const ah  = (a.rect.h + padY*2);
+  const ax2 = ax1 + aw;
+  const ay2 = ay1 + ah;
+  const aArea = aw * ah;
+
+  const candidates = Array.from(svg.querySelectorAll('path,rect,polygon'))
+    .filter(el => {
+      if (!el.getBBox) return false;
+      // Ignore our own hit layers and link lines
+      if (el.closest && (el.closest('#activityHitLayer') || el.closest('#pressureHitLayer'))) return false;
+      if (el.classList && el.classList.contains('matrix-link')) return false;
+      let f = el.getAttribute && el.getAttribute('fill');
+      if (!f || f === 'none'){
+        try { f = getComputedStyle(el).fill; } catch(e) { f = ''; }
+      }
+      if (!f || f === 'none' || f === 'rgba(0, 0, 0, 0)') return false;
+      const fl = (''+f).replace(/\s+/g,'').toLowerCase();
+      if (fl === '#fff' || fl === '#ffffff' || fl === 'white' || fl === 'rgb(255,255,255)' || fl === 'rgba(255,255,255,1)') return false;
+      return true;
+    });
+
+  // Pick the shape that best overlaps our anchor, preferring similar-sized shapes to avoid big background panels.
+  let best = null;
+  let bestScore = -Infinity;
+
+  const scoreCandidate = (bb) => {
+    const bx1 = bb.x, by1 = bb.y, bx2 = bb.x + bb.width, by2 = bb.y + bb.height;
+    const ix1 = Math.max(ax1, bx1), iy1 = Math.max(ay1, by1);
+    const ix2 = Math.min(ax2, bx2), iy2 = Math.min(ay2, by2);
+    const iw = Math.max(0, ix2 - ix1), ih = Math.max(0, iy2 - iy1);
+    const inter = iw * ih;
+    if (inter <= 0) return -Infinity;
+
+    const overlap = inter / aArea; // 0..1
+    const bArea = bb.width * bb.height;
+    const areaRatio = bArea / aArea;
+
+    // penalize very large shapes strongly (background panels)
+    const sizePenalty = (areaRatio > 1) ? Math.log(areaRatio) : 0;
+
+    return (overlap * 10) - (sizePenalty * 5);
+  };
+
+  for (const c of candidates){
+    let bb;
+    try { bb = c.getBBox(); } catch(e){ continue; }
+    if (!bb || !isFinite(bb.width) || !isFinite(bb.height) || bb.width<=0 || bb.height<=0) continue;
+
+    const sc = scoreCandidate(bb);
+    // Require a minimum overlap unless nothing else exists
+    if (sc > bestScore){
+      bestScore = sc;
+      best = c;
+    }
+  }
+
+  let col = '';
+  if (best && isFinite(bestScore) && bestScore > -Infinity){
+    col = (best.getAttribute && best.getAttribute('fill')) || '';
+    if (!col || col === 'none'){
+      try { col = getComputedStyle(best).fill; } catch(e){}
+    }
+  }
+
+  _act2ColorCache.set(act2, col || '');
+  return col || '';
+}
+
+
+
+
+
+const l1TextEls = allTextEls
+  .map(t => {
+    const sig = l1Sig(t.textContent);
+    const canonical = L1_BY_SIG.get(sig);
+    return canonical ? { t, canonical } : null;
+  })
+  .filter(Boolean);
+
+l1TextEls.forEach(({ t, canonical }) => {
+  // style + data attribute on the text itself
+  t.classList.add('l1-btn','l1-text');
+  t.setAttribute('data-l1', canonical);
+});
+
+  // Resolve Level-2 ids robustly (handles spelling/spacing differences)
+const l2Sig = (s) => (s || '')
+  .toString()
+  .toLowerCase()
+  // normalize common spelling variants / formatting
+  .replace(/canalisation/g, 'canalization')
+  .replace(/water\s+course/g, 'watercourse')
+  .replace(/&/g, ' and ')
+  .replace(/\s+/g, ' ')
+  .trim()
+  .replace(/[^a-z0-9]+/g, '');
+const L2_BY_SIG = (() => {
+  const m = new Map();
+  if (!activityParts) return m;
+  Object.keys(activityParts).forEach(k => m.set(l2Sig(k), k));
+  return m;
+})();
+
+// --- Fix split activity labels that were rendered as separate lines (e.g., "Transmission of electricity &" + "communications") ---
+(() => {
+  try {
+    if (activityParts["Transmission of electricity &"] && activityParts["communications"] && !activityParts["Transmission of electricity & communications"]) {
+      activityParts["Transmission of electricity & communications"] = [
+        ...activityParts["Transmission of electricity &"],
+        ...activityParts["communications"],
+      ];
+      // signature aliases
+      L2_BY_SIG.set(l2Sig("Transmission of electricity & communications"), "Transmission of electricity & communications");
+      L2_BY_SIG.set(l2Sig("Transmission of electricity and communications"), "Transmission of electricity & communications");
+    }
+  } catch (e) {}
+})();
+
+const resolveL2Id = (label) => {
+  if (!label) return null;
+  if (activityParts && activityParts[label]) return label;
+  const sig = l2Sig(label);
+  return L2_BY_SIG.get(sig) || null;
+};
+
+const recomputeActivities = () => {
+  const next = new Set(manualActivities);
+  for (const l1 of activeL1s) {
+    const raw = (L1_TO_L2[l1] || []);
+    raw.map(resolveL2Id).filter(Boolean).forEach(x => next.add(x));
+  }
+  selectedActivities = next;
+};
+
+const toggleL1 = (l1Key) => {
+  if (activeL1s.has(l1Key)) activeL1s.delete(l1Key);
+  else activeL1s.add(l1Key);
+
+  // update styling
+  svg.querySelectorAll('[data-l1].active').forEach(el=>el.classList.remove('active'));
+  for (const l1 of activeL1s) {
+    svg.querySelectorAll(`[data-l1="${CSS.escape(l1)}"]`).forEach(el=>el.classList.add('active'));
+  }
+
+  recomputeActivities();
+  applyFilter();
+};
+
+// --- Level-1 click support (pressures) ---
+  const PL1_TO_P2 = {
+    "PHYSICAL": ["Physical loss","Physical disturbance"],
+    "HYDROLOGICAL": ["Changes to hydrological conditions"],
+    "ENERGY": ["Input of sound","Input of other forms of energy"],
+    "SUBSTANCES": ["Input of organic matter","Input of hazardous substances","Input of litter","Input of nutrients"],
+    "BIOLOGICAL": ["Disturbance of species","Extraction or injury to species","Input or introduction of biological material"]
+  };
+
+  const PL1_KEYS = Object.keys(PL1_TO_P2);
+
+  // Make the individual Level-1 pressure words clickable (they are rendered as tspans)
+  const pl1Sig = (s) => (s || '').toString().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const PL1_BY_SIG = new Map(PL1_KEYS.map(k => [pl1Sig(k), k]));
+
+  const allSpanEls = Array.from(svg.querySelectorAll('tspan'));
+  const pl1Spans = allSpanEls
+    .map(sp => {
+      const canonical = PL1_BY_SIG.get(pl1Sig(sp.textContent));
+      return canonical ? { sp, canonical } : null;
+    })
+    .filter(Boolean);
+
+  pl1Spans.forEach(({ sp, canonical }) => {
+    sp.classList.add('pl1-btn','pl1-text');
+    sp.setAttribute('data-pl1', canonical);
+  });
+
+  const resolveP2Id = (label) => {
+    if (!label) return null;
+    if (pressureParts && pressureParts[label]) return label;
+    // fallback: compare normalized signatures
+    const sig = (label || '').toString().toLowerCase().replace(/\s+/g,' ').trim().replace(/[^a-z0-9]+/g,'');
+    const keys = Object.keys(pressureParts || {});
+    for (const k of keys) {
+      const ks = k.toString().toLowerCase().replace(/\s+/g,' ').trim().replace(/[^a-z0-9]+/g,'');
+      if (ks === sig) return k;
+    }
+    return null;
+  };
+
+  const recomputePressures = () => {
+  const next = new Set(manualPressures);
+  for (const pl1 of activePL1s) {
+    const raw = (PL1_TO_P2[pl1] || []);
+    raw.map(resolveP2Id).filter(Boolean).forEach(x => next.add(x));
+  }
+  selectedPressures = next;
+};
+
+const togglePL1 = (pl1Key) => {
+  if (activePL1s.has(pl1Key)) activePL1s.delete(pl1Key);
+  else activePL1s.add(pl1Key);
+
+  // update styling
+  svg.querySelectorAll('[data-pl1].active').forEach(el=>el.classList.remove('active'));
+  for (const pl1 of activePL1s) {
+    svg.querySelectorAll(`[data-pl1="${CSS.escape(pl1)}"]`).forEach(el=>el.classList.add('active'));
+  }
+
+  recomputePressures();
+  applyFilter();
+};
+
+svg.addEventListener('pointerup', (e) => {
+    const l1 = getAttrFromTarget(e.target, 'data-l1');
+    if (l1) { toggleL1(l1); return; }
+
+    const pl1 = getAttrFromTarget(e.target, 'data-pl1');
+    if (pl1) { togglePL1(pl1); return; }
+
     const act = getAttrFromTarget(e.target, 'data-activity');
     const pr  = getAttrFromTarget(e.target, 'data-pressure');
 
-    // Clicking activity hitbox
-    if (act) {
-      selectedActivity = (selectedActivity === act) ? null : act;
-      applyFilter();
-      return;
-    }
+    
+// Clicking activity hitbox (Level-2) — toggle multi-select without clearing Level-1 selections
+if (act) {
+  if (manualActivities.has(act)) manualActivities.delete(act);
+  else manualActivities.add(act);
 
-    // Clicking pressure hitbox
-    if (pr) {
-      selectedPressure = (selectedPressure === pr) ? null : pr;
-      applyFilter();
-      return;
-    }
-  });
+  recomputeActivities();
+  applyFilter();
+  return;
+}
+
+// Clicking pressure hitbox (Level-2) — toggle multi-select without clearing Level-1 selections
+if (pr) {
+  if (manualPressures.has(pr)) manualPressures.delete(pr);
+  else manualPressures.add(pr);
+
+  recomputePressures();
+  applyFilter();
+  return;
+}
+});
 
   document.getElementById('resetBtn')?.addEventListener('click', reset);
   document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') reset(); });
 
+  // Directness toggle UI
+  const _cbD = document.getElementById('dir_direct');
+  const _cbI = document.getElementById('dir_indirect');
+  const _cbB = document.getElementById('dir_both');
+  const _syncDir = () => {
+    if (_cbD) dirFilter.direct = _cbD.checked;
+    if (_cbI) dirFilter.indirect = _cbI.checked;
+    if (_cbB) dirFilter.both = _cbB.checked;
+    renderDetails();
+  };
+  [_cbD,_cbI,_cbB].forEach(cb => cb && cb.addEventListener('change', _syncDir));
+  const _cbSW = document.getElementById('str_weak');
+  const _cbSM = document.getElementById('str_medium');
+  const _cbSS = document.getElementById('str_strong');
+  const _cbSN = document.getElementById('str_na');
+  const _syncStr = () => {
+    if (_cbSW) strFilter.weak = _cbSW.checked;
+    if (_cbSM) strFilter.medium = _cbSM.checked;
+    if (_cbSS) strFilter.strong = _cbSS.checked;
+    if (_cbSN) strFilter.na = _cbSN.checked;
+    renderDetails();
+  };
+  [_cbSW,_cbSM,_cbSS,_cbSN].forEach(cb => cb && cb.addEventListener('change', _syncStr));
+
   // Initial state
   renderDetails();
+  updateSelectionStyles();
   const mappedA = linkPaths.filter(p => p.getAttribute('data-activity')).length;
   const mappedP = linkPaths.filter(p => p.getAttribute('data-pressure')).length;
   if (status) status.textContent = `Loaded. Found ${activities.length} activities, ${pressures.length} pressures, ${linkPaths.length} links. Mapped: ${mappedA} activities, ${mappedP} pressures. Click an activity.`;
