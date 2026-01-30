@@ -2992,7 +2992,7 @@ function _pillStyleFromColor(col){
             const key = `${canonKey(act3)}||${canonKey(pres3)}||${canonKey(pres2)}`;
             const meta = LINK_ATTR.get(key) || LINK_ATTR_BY_A3P3.get(`${canonKey(act3)}||${canonKey(pres3)}`) || { d:'', s:'' };
             if (!pres3ToChips.has(pres3)) pres3ToChips.set(pres3, []);
-            pres3ToChips.get(pres3).push({ label: act3, d: meta.d, s: meta.s });
+            if (isDirEnabled(meta.d) && isStrEnabled(meta.s)) pres3ToChips.get(pres3).push({ label: act3, d: meta.d, s: meta.s });
           }
         }
       } else {
