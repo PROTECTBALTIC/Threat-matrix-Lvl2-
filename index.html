@@ -3444,7 +3444,17 @@ if (pr) {
   updateSelectionStyles();
   const mappedA = linkPaths.filter(p => p.getAttribute('data-activity')).length;
   const mappedP = linkPaths.filter(p => p.getAttribute('data-pressure')).length;
-  if (status) status.textContent = `Loaded. Found ${activities.length} activities, ${pressures.length} pressures, ${linkPaths.length} links. Mapped: ${mappedA} activities, ${mappedP} pressures. Click an activity.`;
+  // Level 3 counts from the embedded link attribute map
+  const linkedAct3 = new Set();
+  const linkedPres3 = new Set();
+  if (typeof LINK_ATTR !== 'undefined' && LINK_ATTR && LINK_ATTR.forEach) {
+    LINK_ATTR.forEach((_, k) => {
+      const parts = String(k).split('||');
+      if (parts[0]) linkedAct3.add(parts[0]);
+      if (parts[1]) linkedPres3.add(parts[1]);
+    });
+  }
+  if (status) status.style.display = 'none';
   linkPaths.forEach(p => p.classList.remove('on'));
 })();
 </script>
